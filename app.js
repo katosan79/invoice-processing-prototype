@@ -7,6 +7,29 @@
   // refreshAllTables(), never patched in place.
   let MATCH_MODE = '3way';
 
+  // Org-wide tolerance policy — same status as MATCH_MODE: a config, not a
+  // per-invoice choice, set via the Tolerance settings modal in the Needs
+  // your input tab. Mirrors the real Invoice Agent's defaults (see
+  // CLAUDE.md): price ±2%, quantity ±1%. Read by withinPriceTolerance()/
+  // withinQtyTolerance() below, which computeOutcome() and runChecks() both
+  // call — keep using those helpers rather than re-deriving the comparison
+  // inline, or the two will drift out of sync again.
+  let PRICE_TOLERANCE_PCT = 2;
+  let QTY_TOLERANCE_PCT = 1;
+
+  // A poPrice/qty of 0 would make a percent-of-base comparison divide by
+  // zero (and "free" or "zero ordered" lines are rare edge cases, not the
+  // scenario tolerance is meant to cover) — fall back to an exact match for
+  // those rather than treating a 0 base as "anything goes".
+  function withinPriceTolerance(l){
+    if (l.poPrice === 0) return Math.abs(l.invPrice) < 0.01;
+    return Math.abs(l.invPrice - l.poPrice) <= l.poPrice * (PRICE_TOLERANCE_PCT/100) + 0.001;
+  }
+  function withinQtyTolerance(l){
+    if (l.qty === 0) return l.grn === 0;
+    return Math.abs(l.grn - l.qty) <= l.qty * (QTY_TOLERANCE_PCT/100) + 0.001;
+  }
+
   function fmt(n){ return 'S$' + n.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
   /* ── supplier avatar: a deterministic colored-initials mark, standing in for a
@@ -111,11 +134,11 @@
     // matching proceeds on price alone.
     const hasGRN = MATCH_MODE === '2way' || (total>0 && received===total);
     if (!hasGRN) return { status:'pending', reasonTag:null }; // none or only some lines received — still waiting
-    const priceOk = inv.lines.every(l=>Math.abs(l.poPrice-l.invPrice)<0.01);
+    const priceOk = inv.lines.every(withinPriceTolerance);
     if (!priceOk) return { status:'risk', reasonTag:'Price' };
     // Quantity can only be checked against what actually arrived (GRN) —
     // 2-way match doesn't have that leg, so there's nothing to compare.
-    const qtyOk = MATCH_MODE === '2way' || inv.lines.every(l=>l.grn===l.qty);
+    const qtyOk = MATCH_MODE === '2way' || inv.lines.every(withinQtyTolerance);
     if (!qtyOk) return { status:'warn', reasonTag:'Quantity' };
     if (Math.abs(inv.amount - reconciledTotal(inv)) > 0.02) return { status:'risk', reasonTag:'Total mismatch' };
     return { status:'ok', reasonTag:null };
@@ -139,8 +162,8 @@
     const total = inv.lines.length, received = inv.lines.filter(l=>l.grn!==null).length;
     const hasGRN = twoWay || (total>0 && received===total);
     const partialGRN = !twoWay && total>0 && received>0 && received<total;
-    const priceOk = hasGRN && inv.lines.every(l=>Math.abs(l.poPrice-l.invPrice)<0.01);
-    const qtyOk = twoWay || (hasGRN && inv.lines.every(l=>l.grn===l.qty));
+    const priceOk = hasGRN && inv.lines.every(withinPriceTolerance);
+    const qtyOk = twoWay || (hasGRN && inv.lines.every(withinQtyTolerance));
     const totalOk = hasGRN && Math.abs(inv.amount - reconciledTotal(inv)) <= 0.02;
     const poState = (!legible || inv.duplicateOf) ? 'na' : !supplierKnown ? 'wait' : inv.po ? 'pass' : (inv.matchAttempted === false ? 'wait' : 'fail');
     const matchGated = !supplierKnown || !inv.po; // no supplier or no PO yet — everything downstream is moot, not failed
@@ -594,6 +617,7 @@
   }
   refreshAllTables();
   renderMatchModeButton();
+  renderToleranceCopy();
 
   function showTab(v){
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.v===v));
@@ -702,11 +726,11 @@
       if (l.missing) { missing++; return; }
       if (l.unmapped) { unmapped++; return; }
       if (l.extra) { extra++; return; }
-      const priceOk = Math.abs(l.poPrice-l.invPrice) < 0.001;
+      const priceOk = withinPriceTolerance(l);
       // 2-way match has no GRN leg — a line either matches on price or it
       // doesn't; there's no "awaiting receipt" or "qty vs GRN" state to fall into.
       if (twoWay) { if (!priceOk) priceIssues++; else matched++; return; }
-      const qtyOk = l.grn===null || l.grn===l.qty;
+      const qtyOk = l.grn===null || withinQtyTolerance(l);
       if (l.grn===null) awaitingGrn++;
       else if (!priceOk) priceIssues++;
       else if (!qtyOk) qtyIssues++;
@@ -804,8 +828,8 @@
         </tr>`;
       }
       const twoWay = MATCH_MODE === '2way';
-      const qtyOk = twoWay || l.grn===null || l.grn===l.qty;
-      const priceOk = (l.extra || l.unmapped) ? true : Math.abs(l.poPrice-l.invPrice) < 0.001;
+      const qtyOk = twoWay || l.grn===null || withinQtyTolerance(l);
+      const priceOk = (l.extra || l.unmapped) ? true : withinPriceTolerance(l);
       let statusHtml, priceNote = '';
       if (l.unmapped) { statusHtml = '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'; }
       else if (l.extra) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Not on ${inv.po}</span>`; }
@@ -889,6 +913,47 @@
       openDetail(window._currentInv.id, window._detailFrom);
     }
     toast(chosen === '2way' ? 'Switched to 2-way match — invoices re-evaluated' : 'Switched to 3-way match — invoices re-evaluated');
+  }
+
+  /* ── Tolerance settings — org-wide policy, same status as matching mode:
+     not a per-invoice control. Opens pre-filled with the values currently
+     in effect; nothing changes until Save, at which point every invoice
+     not already approved/exported is re-evaluated against the new
+     tolerance (see refreshAllTables()). ── */
+  function renderToleranceCopy(){
+    const copy = `±${PRICE_TOLERANCE_PCT}% price · ±${QTY_TOLERANCE_PCT}% qty`;
+    const btn = document.getElementById('tol-settings-btn');
+    const bulk = document.getElementById('tol-bulkbar-copy');
+    if (btn) btn.textContent = '⚙ Tolerances: ' + copy;
+    if (bulk) bulk.textContent = copy;
+  }
+  function openToleranceModal(){
+    document.getElementById('tol-price-input').value = PRICE_TOLERANCE_PCT;
+    document.getElementById('tol-qty-input').value = QTY_TOLERANCE_PCT;
+    document.getElementById('tolerance-modal').classList.add('on');
+  }
+  function closeToleranceModal(){ document.getElementById('tolerance-modal').classList.remove('on'); }
+  function saveToleranceSettings(){
+    const priceInput = document.getElementById('tol-price-input');
+    const qtyInput = document.getElementById('tol-qty-input');
+    // Clamp rather than reject — a stray blank/negative entry shouldn't
+    // block the save, just fall back to a sane bound.
+    const newPrice = Math.min(100, Math.max(0, parseFloat(priceInput.value) || 0));
+    const newQty   = Math.min(100, Math.max(0, parseFloat(qtyInput.value) || 0));
+    const changed = newPrice !== PRICE_TOLERANCE_PCT || newQty !== QTY_TOLERANCE_PCT;
+    PRICE_TOLERANCE_PCT = newPrice;
+    QTY_TOLERANCE_PCT = newQty;
+    closeToleranceModal();
+    renderToleranceCopy();
+    if (!changed) return;
+    refreshAllTables();
+    // If an invoice is open in the detail screen, its checklist/matchbar/
+    // line statuses are computed inline in openDetail() rather than pulled
+    // from a store — re-render it so it reflects the new policy too.
+    if (document.getElementById('v-detail').classList.contains('on') && window._currentInv) {
+      openDetail(window._currentInv.id, window._detailFrom);
+    }
+    toast(`Tolerance updated to ±${PRICE_TOLERANCE_PCT}% price · ±${QTY_TOLERANCE_PCT}% qty — invoices re-evaluated`);
   }
   function toast(msg){
     const el = document.createElement('div');

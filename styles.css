@@ -315,6 +315,14 @@
   .matchmode-opt .d{ font-size:12px; color:var(--text-soft); margin-top:2px; line-height:1.45; }
   .matchmode-warn{ display:flex; gap:8px; font-size:11.5px; color:var(--suntext); background:var(--sunbg); border-radius:8px; padding:9px 11px; margin-top:12px; line-height:1.5; }
 
+  /* ── tolerance settings modal ── */
+  .tol-row{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; }
+  .tol-row label{ font-size:13.5px; font-weight:700; }
+  .tol-input-wrap{ display:flex; align-items:center; gap:6px; border:1.5px solid var(--line); border-radius:8px; padding:6px 10px; }
+  .tol-input-wrap input{ font:inherit; font-size:14px; font-weight:700; color:var(--text); background:transparent; border:none; width:52px; text-align:right; }
+  .tol-input-wrap input:focus{ outline:none; }
+  .tol-input-wrap span{ font-size:13px; color:var(--text-soft); }
+
   /* ── upload modal ── */
   .fld{ margin-top:16px; max-width:320px; }
   .fld label{ display:block; font-size:11px; font-weight:700; color:var(--text-soft); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; }

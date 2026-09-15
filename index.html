@@ -73,8 +73,11 @@
     <!-- ═══ NEEDS YOUR INPUT ═══ -->
     <section class="view" id="v-needs">
       <div class="bulkbar">
-        <label><input type="checkbox" onchange="if(this.checked) openModal(); else this.checked=false;"> Approve all selected under configured tolerance (±2% price · ±1% qty)</label>
-        <button class="btn btn-ghost" disabled>Approve selected (0)</button>
+        <label><input type="checkbox" onchange="if(this.checked) openModal(); else this.checked=false;"> Approve all selected under configured tolerance (<span id="tol-bulkbar-copy">±2% price · ±1% qty</span>)</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-ghost" id="tol-settings-btn" onclick="openToleranceModal()">⚙ Tolerances</button>
+          <button class="btn btn-ghost" disabled>Approve selected (0)</button>
+        </div>
       </div>
       <div class="listbar">
         <div class="search"><span class="ic">🔍</span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('needs','query',this.value)"></div>
@@ -327,6 +330,35 @@
       <div class="row2">
         <button class="btn btn-ghost" onclick="closeSettingsModal()">Cancel</button>
         <button class="btn btn-go" onclick="saveMatchSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TOLERANCE SETTINGS — org-wide policy, same status as Matching
+       settings: not a per-invoice control. Sets how much price/quantity
+       variance the Invoice Agent tolerates before flagging an exception —
+       tightening or loosening this re-evaluates every invoice currently
+       waiting, same as flipping the match mode. ═══ -->
+  <div class="modal-bg" id="tolerance-modal">
+    <div class="modal" style="width:380px;">
+      <h4>Tolerance settings</h4>
+      <p>How much an invoice can vary from the PO before it's flagged for review, instead of auto-posting. Applies to every line on every invoice — changing this re-evaluates invoices already waiting.</p>
+
+      <div class="tol-row">
+        <label for="tol-price-input">Price tolerance</label>
+        <div class="tol-input-wrap"><input type="number" id="tol-price-input" min="0" max="100" step="0.5"/><span>%</span></div>
+      </div>
+      <p style="margin-top:2px;">An invoiced price within this percent of the PO price auto-passes. Above it, the line is flagged <b>Price</b> and routed to Needs your input.</p>
+
+      <div class="tol-row" style="margin-top:14px;">
+        <label for="tol-qty-input">Quantity tolerance</label>
+        <div class="tol-input-wrap"><input type="number" id="tol-qty-input" min="0" max="100" step="0.5"/><span>%</span></div>
+      </div>
+      <p style="margin-top:2px;">An invoiced quantity within this percent of what GRN confirms was received auto-passes. Above it, the line is flagged <b>Quantity</b>. Not used in 2-way match, which has no GRN leg to compare against.</p>
+
+      <div class="row2">
+        <button class="btn btn-ghost" onclick="closeToleranceModal()">Cancel</button>
+        <button class="btn btn-go" onclick="saveToleranceSettings()">Save</button>
       </div>
     </div>
   </div>
