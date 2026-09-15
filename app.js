@@ -30,6 +30,61 @@
     return Math.abs(l.grn - l.qty) <= l.qty * (QTY_TOLERANCE_PCT/100) + 0.001;
   }
 
+  // ── Date range (scopes the KPI stat row + all three tabs) ───────────────
+  // Every seeded `date` (e.g. "12 June, 09:40") omits the year — data.js is
+  // written as one continuous stretch, all in SEED_YEAR. Parsed once per
+  // invoice into a real Date so the range picker has something to compare
+  // against, rather than string-sorting date labels.
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const SEED_YEAR = 2026;
+  function parseInvDate(inv){
+    const m = /^(\d{1,2})\s+([A-Za-z]+),\s+(\d{1,2}):(\d{2})$/.exec(inv.date || '');
+    if (!m) return null;
+    const monthIdx = MONTH_NAMES.indexOf(m[2]);
+    if (monthIdx < 0) return null;
+    return new Date(SEED_YEAR, monthIdx, +m[1], +m[3], +m[4]);
+  }
+  // The demo data sits in a fixed window in the past (June 2026) rather
+  // than trailing up to whatever "today" the browser reports — so presets
+  // are anchored to the latest seeded invoice, not Date.now(), or "Last 7
+  // days" would silently show nothing.
+  const LATEST_SEED_DATE = INV.reduce((max, inv) => {
+    const d = parseInvDate(inv);
+    return d && d > max ? d : max;
+  }, new Date(0));
+  function startOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function endOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999); }
+  function daysBefore(d, n){ const r = startOfDay(d); r.setDate(r.getDate()-n); return r; }
+  function addDays(d, n){ const r = startOfDay(d); r.setDate(r.getDate()+n); return r; }
+
+  // { preset, from, to } — 'all' ignores from/to entirely; every other
+  // preset (including 'custom') is a concrete [from,to] window.
+  let DATE_RANGE = { preset:'all', from:null, to:null };
+  // Referenced by renderDateRangeCopy(), which runs as part of the eager
+  // refreshAllTables() call below — must be defined before that point, not
+  // just before its own function definitions further down the file.
+  const DR_PRESET_LABEL = { all:'All time', '7':'Last 7 days', '14':'Last 14 days', month:'This month', custom:'Custom range' };
+  function applyDateRangePreset(preset){
+    if (preset === 'all') { DATE_RANGE = { preset:'all', from:null, to:null }; return; }
+    if (preset === '7')   { DATE_RANGE = { preset, from:daysBefore(LATEST_SEED_DATE,6),  to:endOfDay(LATEST_SEED_DATE) }; return; }
+    if (preset === '14')  { DATE_RANGE = { preset, from:daysBefore(LATEST_SEED_DATE,13), to:endOfDay(LATEST_SEED_DATE) }; return; }
+    if (preset === 'month'){
+      const start = new Date(LATEST_SEED_DATE.getFullYear(), LATEST_SEED_DATE.getMonth(), 1);
+      DATE_RANGE = { preset, from:start, to:endOfDay(LATEST_SEED_DATE) };
+      return;
+    }
+    // 'custom' is set directly from the date inputs by saveDateRange(), not here.
+  }
+  function dateInRange(inv){
+    if (DATE_RANGE.preset === 'all') return true;
+    const d = parseInvDate(inv);
+    if (!d) return true; // no parseable date (e.g. a still-digitizing capture) — don't hide it over a filter it can't be judged against
+    if (DATE_RANGE.from && d < DATE_RANGE.from) return false;
+    if (DATE_RANGE.to && d > DATE_RANGE.to) return false;
+    return true;
+  }
+  function visibleInvoices(){ return INV.filter(dateInRange); }
+
   function fmt(n){ return 'S$' + n.toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
   /* ── supplier avatar: a deterministic colored-initials mark, standing in for a
@@ -435,9 +490,9 @@
      Invoices = resolved (matched cleanly, approved, or exported)
      An invoice moves out of one tab and into the next as its status changes —
      it never sits in more than one, so none of these lists grows unbounded. */
-  function getUploads(){ return INV.filter(i => i.status === 'pending'); }
-  function getNeeds(){ return INV.filter(i => ['risk','warn'].includes(i.status)); }
-  function getProcessed(){ return INV.filter(i => ['ok','approved','exported'].includes(i.status)); }
+  function getUploads(){ return visibleInvoices().filter(i => i.status === 'pending'); }
+  function getNeeds(){ return visibleInvoices().filter(i => ['risk','warn'].includes(i.status)); }
+  function getProcessed(){ return visibleInvoices().filter(i => ['ok','approved','exported'].includes(i.status)); }
 
   /* ── detail-screen prev/next — the same filtered/sorted list the table
      itself is showing for whichever tab the detail view was opened from,
@@ -508,10 +563,10 @@
     // it needed a human (currently sitting in Needs, any reason). Still-
     // pending uploads (no supplier/PO/GRN yet) aren't decided either way,
     // so they're excluded from the rate rather than counted as a miss.
-    const decided = INV.filter(i => ['ok','approved','exported','risk','warn'].includes(i.status));
+    const decided = visibleInvoices().filter(i => ['ok','approved','exported','risk','warn'].includes(i.status));
     const clearedCount = decided.filter(i => !FINANCIAL_REASON_TAGS.concat(['Extra items','Items missing','Unmapped item','Items differ from PO']).includes(i.reasonTag)).length;
     const autoClearRate = decided.length ? Math.round(clearedCount/decided.length*100) : 0;
-    const exceptionsCaught = INV.reduce((s,i)=> s + exceptionCaughtAmount(i), 0);
+    const exceptionsCaught = visibleInvoices().reduce((s,i)=> s + exceptionCaughtAmount(i), 0);
     return { needsValue, needsCount: needs.length, autoClearRate, exceptionsCaught };
   }
   function renderStats(){
@@ -614,12 +669,24 @@
     renderProcTable();
     updateCounts();
     renderStats();
+    renderDateRangeCopy();
   }
   refreshAllTables();
   renderMatchModeButton();
   renderToleranceCopy();
 
+  // The stat row and tab bar are queue-level chrome — they summarize and
+  // navigate between Uploads/Needs/Processed, which stop meaning anything
+  // once you're heads-down on one invoice. Hidden whenever the detail view
+  // is open (see openDetail()) and restored by showTab(), which is the
+  // only way back to a list view (including the detail screen's own Back
+  // button — see BACK_LABELS/backBtn.onclick below).
+  function setQueueChromeVisible(visible){
+    document.getElementById('statrow-wrap').style.display = visible ? '' : 'none';
+    document.getElementById('tabsrow').style.display = visible ? '' : 'none';
+  }
   function showTab(v){
+    setQueueChromeVisible(true);
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.v===v));
     document.querySelectorAll('.view').forEach(s => s.classList.remove('on'));
     document.getElementById('v-'+v).classList.add('on');
@@ -682,7 +749,37 @@
     return `${chat}<div style="font-size:12px;color:var(--text-soft);">One action bar — no more split top/bottom controls</div>`;
   }
 
-  /* ── mocked source-document preview (every invoice gets one; multi-page examples paginate) ── */
+  // ── Reference data for the source-document mockup only — decorative
+  // dressing (address/ABN/bank details), never read by matching logic.
+  // Keyed by the exact supplier/outlet strings already used in data.js;
+  // add an entry here when a new supplier or outlet is added there, or
+  // it falls back to the generic entry below.
+  const SUPPLIER_INFO = {
+    'Sydney Butchers Co.':      { category:'Meat & Seafood',    addr:'12 Anzac Parade, Sydney NSW 2000',       abn:'54 321 987 654', phone:'+61 2 9000 1234', email:'orders@sydneybutchers.com.au',      bank:'Commonwealth Bank · BSB 062-000 · Acc 1234 5678' },
+    'Green Farmers Market':     { category:'Fresh Produce',     addr:'8 Flemington Markets Rd, Sydney NSW 2140', abn:'22 114 556 903', phone:'+61 2 9764 2200', email:'orders@greenfarmersmarket.com.au', bank:'Westpac · BSB 032-001 · Acc 9012 3456' },
+    'Harbour Meats':            { category:'Premium Meats',     addr:'4 Wharf Rd, Newtown NSW 2042',            abn:'67 902 331 118', phone:'+61 2 9550 7788', email:'accounts@harbourmeats.com.au',      bank:'ANZ · BSB 012-345 · Acc 5566 7788' },
+    'Metro Bakery Supplies':    { category:'Bakery & Provisions', addr:'21 Baker St, Bondi Beach NSW 2026',     abn:'39 220 774 662', phone:'+61 2 9130 4455', email:'orders@metrobakery.com.au',        bank:'NAB · BSB 084-006 · Acc 3344 5566' },
+    'Pacific Drinks Wholesale': { category:'Beverages',         addr:'15 Harbourfront Dr, Melbourne VIC 3000', abn:'88 445 213 907', phone:'+61 3 9642 1180', email:'sales@pacificdrinks.com.au',        bank:'CommBank · BSB 062-100 · Acc 7788 9900' },
+    'Fresh Produce Co':         { category:'Fruit & Vegetables', addr:'6 Growers Ln, Melbourne CBD VIC 3000',  abn:'15 663 890 244', phone:'+61 3 9204 5567', email:'orders@freshproduceco.com.au',     bank:'Westpac · BSB 032-002 · Acc 2233 4455' },
+  };
+  const GENERIC_SUPPLIER_INFO = { category:'Supplier', addr:'', abn:'', phone:'', email:'', bank:'' };
+  const OUTLET_INFO = {
+    'Bondi Beach':       { addr:'168 Campbell Parade, Bondi Beach NSW 2026', window:'6:00 AM – 8:00 AM' },
+    'Newtown':           { addr:'305 King St, Newtown NSW 2042',             window:'6:30 AM – 8:30 AM' },
+    'Parramatta Table':  { addr:'2 Church St, Parramatta NSW 2150',          window:'7:00 AM – 9:00 AM' },
+    'Melbourne CBD':     { addr:'88 Collins St, Melbourne VIC 3000',         window:'6:00 AM – 8:00 AM' },
+    'Surry Hills':       { addr:'412 Crown St, Surry Hills NSW 2010',        window:'7:00 AM – 9:00 AM' },
+  };
+  const GENERIC_OUTLET_INFO = { addr:'', window:'' };
+  // The restaurant group operating every outlet in this prototype — distinct
+  // from "nomni Procure", the software brand in the sidebar.
+  const BUYER_INFO = { name:'HARBOUR HOSPITALITY GROUP PTY LTD', abn:'91 604 218 337' };
+
+  /* ── mocked source-document preview (every invoice gets one; multi-page
+     examples paginate). Field set is modeled on a real AU tax invoice —
+     supplier letterhead, invoice/delivery/due dates, PO reference, Bill
+     To / Deliver To, a per-line unit price, and a Subtotal/GST/Total
+     breakdown — so it reads as a real captured document, not a stub. ── */
   function buildDocMockup(inv, page){
     if (inv.legible === false) {
       return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:170px;color:#b0b0b0;text-align:center;gap:8px;">
@@ -702,15 +799,56 @@
     const perPage = totalPages > 1 ? Math.ceil(lines.length / totalPages) : lines.length;
     const pageLines = totalPages > 1 ? lines.slice((page-1)*perPage, (page-1)*perPage + perPage) : lines;
     const showTotal = page === totalPages;
+    const showHeader = page === 1;
+
+    const sup = SUPPLIER_INFO[inv.supplier] || GENERIC_SUPPLIER_INFO;
+    const out = OUTLET_INFO[inv.outlet] || GENERIC_OUTLET_INFO;
+    const invDate = parseInvDate(inv);
+    const deliveryDate = invDate ? fmtShortDate(addDays(invDate, 1)) : '—';
+    const dueDate = invDate ? fmtShortDate(addDays(invDate, 30)) : '—';
+    const deliveryOrder = 'DO-' + inv.id.replace(/^INV-/, '');
+
+    const headerHtml = !showHeader ? '' : `
+      <div class="letterhead-row">
+        <div>
+          <div class="doc-category">${sup.category}</div>
+          <div class="letterhead">${inv.supplier || 'Unknown supplier'}</div>
+        </div>
+        <div class="doctype">Tax invoice${inv.source==='peppol' ? ' · via PEPPOL' : ''}</div>
+      </div>
+      ${sup.addr ? `<div class="doc-supaddr">${sup.addr}${sup.abn ? ' · ABN ' + sup.abn : ''}</div>` : ''}
+      <div class="docmeta-grid">
+        <div><span>Invoice No.</span><b>${(inv.rawReference || inv.id).replace('INV-','#')}</b></div>
+        <div><span>Invoice Date</span><b>${invDate ? fmtShortDate(invDate) : inv.date}</b></div>
+        <div><span>Delivery Date</span><b>${deliveryDate}</b></div>
+        <div><span>PO Reference</span><b>${inv.po || '—'}</b></div>
+        <div><span>Delivery Order</span><b>${deliveryOrder}</b></div>
+        <div><span>Payment Terms</span><b>Net 30 Days</b></div>
+        <div><span>Due Date</span><b>${dueDate}</b></div>
+      </div>
+      <div class="doc-parties">
+        <div><span>Bill To</span><b>${BUYER_INFO.name}</b></div>
+        <div><span>Deliver To</span><b>${inv.outlet || '—'}</b>${out.addr ? `<div class="doc-addrline">${out.addr}</div>` : ''}${out.window ? `<div class="doc-addrline">Delivery window: ${out.window}</div>` : ''}</div>
+      </div>
+    `;
+
+    const subtotal = inv.amount / 1.1, gst = inv.amount - subtotal;
+    const footerHtml = !showTotal ? '' : `
+      <div class="doctotals">
+        <div><span>Subtotal</span><span>${fmt(subtotal)}</span></div>
+        <div><span>GST @ 10%</span><span>${fmt(gst)}</span></div>
+        <div class="doctotal-final"><span>Total Due</span><span>${fmt(inv.amount)}</span></div>
+      </div>
+      ${sup.bank ? `<div class="doc-paynote">Bank: ${sup.bank}${sup.phone ? ' · ' + sup.phone : ''}</div>` : ''}
+    `;
+
     return `
-      <div class="letterhead">${inv.supplier}</div>
-      <div class="doctype">Tax invoice${inv.source==='peppol' ? ' · via PEPPOL' : ''}</div>
-      <div class="meta"><span>Invoice ${inv.id.replace('INV-','#')}</span><span>${inv.date}</span></div>
+      ${headerHtml}
       <table>
-        <thead><tr><th>Item</th><th style="text-align:right">Qty</th><th style="padding-left:10px">UoM</th><th style="text-align:right">Amount</th></tr></thead>
-        <tbody>${pageLines.map(l => `<tr><td>${l.name}</td><td style="text-align:right">${l.qty}</td><td style="padding-left:10px;color:#888;">${l.uom||''}</td><td style="text-align:right">${l.invPrice ? fmt(l.qty*l.invPrice) : ''}</td></tr>`).join('')}</tbody>
+        <thead><tr><th>Description</th><th style="text-align:right">Qty</th><th style="padding-left:10px">UOM</th><th style="text-align:right">Unit price</th><th style="text-align:right">Amount</th></tr></thead>
+        <tbody>${pageLines.map(l => `<tr><td>${l.name}</td><td style="text-align:right">${l.qty}</td><td style="padding-left:10px;color:#888;">${l.uom||''}</td><td style="text-align:right">${l.invPrice ? fmt(l.invPrice) : ''}</td><td style="text-align:right">${l.invPrice ? fmt(l.qty*l.invPrice) : ''}</td></tr>`).join('')}</tbody>
       </table>
-      ${showTotal ? `<div class="doctotal">Total ${fmt(inv.amount)}</div>` : ''}
+      ${footerHtml}
       <div class="pagestamp">Page ${page} of ${totalPages}</div>
     `;
   }
@@ -867,6 +1005,7 @@
     document.getElementById('d-gst').textContent = fmt(gst);
     document.getElementById('d-total').textContent = fmt(inv.amount);
 
+    setQueueChromeVisible(false);
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
     document.getElementById('v-detail').classList.add('on');
@@ -951,6 +1090,61 @@
       openDetail(window._currentInv.id, window._detailFrom);
     }
     toast(`Tolerance updated to ±${PRICE_TOLERANCE_PCT}% price · ±${QTY_TOLERANCE_PCT}% qty — invoices re-evaluated`);
+  }
+
+  /* ── Date range — scopes the stat row and every list to a window of
+     invoice dates. Same shape as Matching/Tolerance settings (org-wide,
+     explicit Save/Apply, re-evaluates the queue), but reversible per
+     visit rather than a standing policy — so it defaults back to "All
+     time" on reload rather than persisting like MATCH_MODE would. ── */
+  function fmtShortDate(d){ return d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}); }
+  function renderDateRangeCopy(){
+    const btn = document.getElementById('daterange-btn');
+    if (btn) btn.textContent = '📅 ' + DR_PRESET_LABEL[DATE_RANGE.preset];
+    const scope = document.getElementById('statrow-scope');
+    if (!scope) return;
+    scope.textContent = DATE_RANGE.preset === 'all'
+      ? 'Stats above cover every invoice, all time.'
+      : `Stats above cover ${fmtShortDate(DATE_RANGE.from)} – ${fmtShortDate(DATE_RANGE.to)} (${DR_PRESET_LABEL[DATE_RANGE.preset].toLowerCase()}).`;
+  }
+  function previewDateRange(preset){
+    document.getElementById('dr-custom-row').style.display = preset === 'custom' ? 'flex' : 'none';
+  }
+  // Deliberately not toISOString() — that converts to UTC first, which can
+  // shift the calendar day backward/forward depending on the browser's
+  // timezone offset from the local Date these presets are built from.
+  function toDateInputValue(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  function openDateRangeModal(){
+    document.querySelector(`input[name="drpreset"][value="${DATE_RANGE.preset}"]`).checked = true;
+    previewDateRange(DATE_RANGE.preset);
+    document.getElementById('dr-from-input').value = DATE_RANGE.from ? toDateInputValue(DATE_RANGE.from) : toDateInputValue(daysBefore(LATEST_SEED_DATE,6));
+    document.getElementById('dr-to-input').value = DATE_RANGE.to ? toDateInputValue(DATE_RANGE.to) : toDateInputValue(LATEST_SEED_DATE);
+    document.getElementById('daterange-modal').classList.add('on');
+  }
+  function closeDateRangeModal(){ document.getElementById('daterange-modal').classList.remove('on'); }
+  function saveDateRange(){
+    const preset = document.querySelector('input[name="drpreset"]:checked').value;
+    const prevPreset = DATE_RANGE.preset, prevFrom = DATE_RANGE.from, prevTo = DATE_RANGE.to;
+    if (preset === 'custom') {
+      const fromVal = document.getElementById('dr-from-input').value;
+      const toVal = document.getElementById('dr-to-input').value;
+      // Missing either bound isn't an error here — an open-ended custom
+      // range (e.g. "everything from 10 June onward") is a reasonable
+      // thing to want, not a form that failed validation.
+      const from = fromVal ? startOfDay(new Date(fromVal + 'T00:00:00')) : null;
+      const to = toVal ? endOfDay(new Date(toVal + 'T00:00:00')) : null;
+      DATE_RANGE = { preset:'custom', from, to };
+    } else {
+      applyDateRangePreset(preset);
+    }
+    closeDateRangeModal();
+    renderDateRangeCopy();
+    const changed = DATE_RANGE.preset !== prevPreset || +DATE_RANGE.from !== +prevFrom || +DATE_RANGE.to !== +prevTo;
+    if (!changed) return;
+    refreshAllTables();
+    toast(`Date range set to ${DR_PRESET_LABEL[DATE_RANGE.preset].toLowerCase()} — lists and stats updated`);
   }
   function toast(msg){
     const el = document.createElement('div');

@@ -34,15 +34,19 @@
       <div class="topbar">
         <h1 id="page-title">Invoices</h1>
         <div class="actions">
+          <button class="btn btn-ghost" id="daterange-btn" onclick="openDateRangeModal()">📅 All time</button>
           <button class="btn btn-ghost" id="match-settings-btn" onclick="openSettingsModal()">⚙ Matching: 3-way</button>
           <button class="btn btn-ghost" onclick="openUploadModal()">↑ Upload invoice</button>
           <div class="help-user">Help &nbsp;·&nbsp; Keith Tan ▾</div>
         </div>
       </div>
 
-      <div class="statrow" id="statrow"></div>
+      <div class="statrow-wrap" id="statrow-wrap">
+        <div class="statrow" id="statrow"></div>
+        <div class="statrow-scope" id="statrow-scope"></div>
+      </div>
 
-      <div class="tabs">
+      <div class="tabs" id="tabsrow">
         <button class="tab on" data-v="uploads">Uploads <span class="n">11</span></button>
         <button class="tab" data-v="needs">Needs your input <span class="n">5</span></button>
         <button class="tab" data-v="proc">Processed</button>
@@ -73,7 +77,7 @@
     <!-- ═══ NEEDS YOUR INPUT ═══ -->
     <section class="view" id="v-needs">
       <div class="bulkbar">
-        <label><input type="checkbox" onchange="if(this.checked) openModal(); else this.checked=false;"> Approve all selected under configured tolerance (<span id="tol-bulkbar-copy">±2% price · ±1% qty</span> · <a href="#" class="tol-change-link" onclick="event.preventDefault();openToleranceModal();">Change</a>)</label>
+        <label><input type="checkbox" onchange="if(this.checked) openModal(); else this.checked=false;"> Approve all selected under tolerance: <span id="tol-bulkbar-copy">±2% price · ±1% qty</span> <a href="#" class="tol-change-link" onclick="event.preventDefault();openToleranceModal();">Change</a></label>
         <button class="btn btn-ghost" disabled>Approve selected (0)</button>
       </div>
       <div class="listbar">
@@ -327,6 +331,42 @@
       <div class="row2">
         <button class="btn btn-ghost" onclick="closeSettingsModal()">Cancel</button>
         <button class="btn btn-go" onclick="saveMatchSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DATE RANGE — scopes the KPI stat row and every list (Uploads,
+       Needs your input, Processed) to a window of invoice dates. Presets
+       are anchored to the latest seeded invoice date, not the real
+       clock — see LATEST_SEED_DATE in app.js — since this demo dataset
+       sits in a fixed window in the past. ═══ -->
+  <div class="modal-bg" id="daterange-modal">
+    <div class="modal" style="width:380px;">
+      <h4>Date range</h4>
+      <p>Scopes the stats above and every invoice list on this page to invoices dated within the window below.</p>
+
+      <div class="dr-opt-list">
+        <label class="dr-opt"><input type="radio" name="drpreset" value="all" onchange="previewDateRange('all')"><span>All time</span></label>
+        <label class="dr-opt"><input type="radio" name="drpreset" value="7" onchange="previewDateRange('7')"><span>Last 7 days</span></label>
+        <label class="dr-opt"><input type="radio" name="drpreset" value="14" onchange="previewDateRange('14')"><span>Last 14 days</span></label>
+        <label class="dr-opt"><input type="radio" name="drpreset" value="month" onchange="previewDateRange('month')"><span>This month</span></label>
+        <label class="dr-opt"><input type="radio" name="drpreset" value="custom" onchange="previewDateRange('custom')"><span>Custom range</span></label>
+      </div>
+
+      <div class="dr-custom-row" id="dr-custom-row" style="display:none;">
+        <div class="fld" style="max-width:none;flex:1;">
+          <label>From</label>
+          <input type="date" id="dr-from-input"/>
+        </div>
+        <div class="fld" style="max-width:none;flex:1;">
+          <label>To</label>
+          <input type="date" id="dr-to-input"/>
+        </div>
+      </div>
+
+      <div class="row2">
+        <button class="btn btn-ghost" onclick="closeDateRangeModal()">Cancel</button>
+        <button class="btn btn-go" onclick="saveDateRange()">Apply</button>
       </div>
     </div>
   </div>

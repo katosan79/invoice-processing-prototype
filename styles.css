@@ -53,7 +53,10 @@
      tabs and stays visible whichever one is active: what needs attention
      right now (dollar exposure, not just a count) alongside what the agent
      has already done (auto-clear rate, $ caught before posting). ── */
-  .statrow{ display:flex; gap:14px; flex-wrap:wrap; padding:16px 28px 0 28px; }
+  .statrow-wrap{ display:flex; flex-direction:column; gap:8px; padding-top:16px; }
+  .statrow{ display:flex; gap:14px; flex-wrap:wrap; padding:0 28px; }
+  .statrow-scope{ padding:0 28px; font-size:12px; color:var(--text-soft); }
+  .statrow-scope b{ color:var(--text); }
   .stat-tile{ flex:1 1 200px; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:13px 16px; }
   .stat-tile .lab{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--text-soft); margin-bottom:5px; }
   .stat-tile .val{ font-size:22px; font-weight:700; line-height:1.15; }
@@ -281,13 +284,29 @@
   .totals .row.total{ color:var(--text); font-weight:700; font-size:16px; border-top:1px solid var(--line); margin-top:6px; padding-top:12px; }
   .doclabel{ color:var(--text-soft); font-size:12px; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
   .docmock{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px 10px; font-size:10.5px; color:#3a3a3a; min-height:200px; box-shadow:0 1px 4px rgba(0,0,0,.08); position:relative; }
+  .docmock .letterhead-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .docmock .doc-category{ color:#9a9a9a; font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
   .docmock .letterhead{ font-weight:800; font-size:13px; color:var(--seaweed); }
-  .docmock .doctype{ color:#9a9a9a; font-size:9px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:10px; }
+  .docmock .doctype{ color:#9a9a9a; font-size:9px; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; padding-top:2px; }
+  .docmock .doc-supaddr{ font-size:9px; color:#999; margin-top:4px; }
+  .docmock .docmeta-grid{ display:grid; grid-template-columns:1fr 1fr; gap:5px 10px; font-size:9px; margin:10px 0; padding:8px 0; border-top:1px solid #eee; border-bottom:1px solid #eee; }
+  .docmock .docmeta-grid > div{ display:flex; flex-direction:column; gap:1px; }
+  .docmock .docmeta-grid span{ color:#a3a3a3; font-size:8px; text-transform:uppercase; letter-spacing:.03em; }
+  .docmock .docmeta-grid b{ color:#333; font-weight:700; }
+  .docmock .doc-parties{ display:flex; flex-direction:column; gap:8px; font-size:9.5px; margin-bottom:10px; }
+  .docmock .doc-parties span{ display:block; color:#a3a3a3; font-size:8px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:1px; }
+  .docmock .doc-parties b{ color:#222; }
+  .docmock .doc-addrline{ color:#888; font-size:9px; line-height:1.4; }
   .docmock .meta{ display:flex; justify-content:space-between; font-size:9.5px; color:#666; margin-bottom:9px; border-bottom:1px solid #eee; padding-bottom:8px; }
   .docmock table{ width:100%; border-collapse:collapse; font-size:9.5px; }
   .docmock th{ text-align:left; color:#a3a3a3; font-weight:700; padding:3px 2px; border-bottom:1px solid #eee; }
   .docmock td{ padding:3px 2px; border-bottom:1px solid #f5f5f5; }
   .docmock .doctotal{ text-align:right; font-weight:800; margin-top:9px; font-size:11px; color:#222; }
+  .docmock .doctotals{ margin-top:8px; padding-top:6px; }
+  .docmock .doctotals > div{ display:flex; justify-content:space-between; padding:2px 0; font-size:9.5px; color:#777; }
+  .docmock .doctotal-final{ font-weight:800; font-size:11.5px; color:#222 !important; border-top:1px solid #eee; margin-top:4px; padding-top:6px !important; }
+  .docmock .doctotal-final span{ color:#222 !important; }
+  .docmock .doc-paynote{ font-size:8.5px; color:#999; margin-top:8px; line-height:1.5; }
   .docmock .pagestamp{ position:absolute; bottom:8px; right:12px; font-size:8.5px; color:#c4c4c4; }
   .docpages{ display:flex; align-items:center; justify-content:center; gap:12px; margin:8px 0 16px; font-size:12px; color:var(--text-soft); }
   .docpages button{ border:1px solid var(--line); background:var(--surface); border-radius:6px; width:24px; height:24px; cursor:pointer; font:inherit; }
@@ -314,6 +333,13 @@
   .matchmode-opt .t{ font-size:13.5px; font-weight:700; }
   .matchmode-opt .d{ font-size:12px; color:var(--text-soft); margin-top:2px; line-height:1.45; }
   .matchmode-warn{ display:flex; gap:8px; font-size:11.5px; color:var(--suntext); background:var(--sunbg); border-radius:8px; padding:9px 11px; margin-top:12px; line-height:1.5; }
+
+  /* ── date range modal ── */
+  .dr-opt-list{ display:flex; flex-direction:column; gap:2px; margin-top:14px; }
+  .dr-opt{ display:flex; align-items:center; gap:10px; padding:8px 4px; font-size:13.5px; font-weight:600; cursor:pointer; border-radius:8px; }
+  .dr-opt:hover{ background:var(--surface-soft); }
+  .dr-opt input{ accent-color:var(--fern); }
+  .dr-custom-row{ display:flex; gap:10px; margin-top:4px; }
 
   /* ── tolerance settings modal ── */
   .tol-change-link{ color:var(--fern); font-weight:600; text-decoration:none; }
