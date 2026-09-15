@@ -1671,12 +1671,15 @@
     return ordered !== null && poCumulativeInvoicedQty(po, l.sku) > ordered;
   }
   // open = (when the invoice's supplier is known) belonging to that same
-  // supplier — the one thing that makes a PO a *plausible* pick, before a
-  // person even starts typing. A PO already linked elsewhere is still a
-  // candidate — a PO can legitimately be split across several invoices —
-  // poSharedNote() below is what surfaces that context instead of hiding it.
+  // supplier, and not already on THIS invoice (adding the same PO twice
+  // makes no sense) — the two things that make a PO a *plausible* pick,
+  // before a person even starts typing. A PO already linked to some OTHER
+  // invoice is still a candidate — a PO can legitimately be split across
+  // several invoices — poSharedNote() below is what surfaces that context
+  // instead of hiding it.
   function poCandidatesFor(inv){
-    return PO_CATALOG.filter(p => !inv.supplier || p.supplier === inv.supplier);
+    const already = new Set(invPOList(inv).map(p => p.po));
+    return PO_CATALOG.filter(p => !already.has(p.po) && (!inv.supplier || p.supplier === inv.supplier));
   }
   function poSharedNote(poCode, excludeId){
     const others = invoicesForPO(poCode, excludeId);
@@ -1725,16 +1728,21 @@
     const editable = !['approved','exported'].includes(inv.status);
     const list = invPOList(inv);
     // A consolidated invoice (several POs on one bill): every PO gets its
-    // own chip, no amount on the chip (the invoice's one amount isn't any
-    // single PO's), and no Change button — editing which of several isn't
-    // built yet (see app.js top-of-file MATCH_MODE-style comment pattern:
-    // this pass covers the data model and every read path, the multi-add
-    // "Link PO" UI is a follow-up).
+    // own chip with a remove control (never down to zero — removePO()
+    // refuses below the last one), no amount on the chip (the invoice's
+    // one amount isn't any single PO's), and "+ Add another" instead of
+    // Change — editing which of several isn't a single action.
     if (list.length > 1) {
-      const chips = list.map(p => `<span class="pochip"><span class="n">${p.po}</span><span class="d">${p.poDate}</span></span>`).join('');
+      const chips = list.map(p => `<span class="pochip">
+        <span class="pochip-head"><span class="n">${p.po}</span>${editable ? `<button class="pochip-x" title="Remove ${p.po}" onclick="removePO('${inv.id}','${p.po}')">✕</button>` : ''}</span>
+        <span class="d">${p.poDate}</span>
+      </span>`).join('');
       return `<div style="display:flex;flex-direction:column;gap:8px;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${chips}</div>
-        <div style="font-size:11.5px;color:var(--text-soft);">${list.length} purchase orders consolidated on this invoice</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--text-soft);">
+          <span>${list.length} purchase orders consolidated on this invoice</span>
+          ${editable ? `<button class="btn-text" style="font-size:12px;" onclick="openAddPO('${inv.id}')">+ Add another PO</button>` : ''}
+        </div>
       </div>`;
     }
     // The other direction: this one PO might also be on other invoices —
@@ -1743,10 +1751,11 @@
     return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span class="pochip"><span class="n">${inv.po}</span><span class="d">${inv.poDate} · ${fmt(inv.amount)}</span></span>
       ${editable ? `<button class="btn-text" style="font-size:12px;" onclick="editPO('${inv.id}')">Change</button>` : ''}
+      ${editable ? `<button class="btn-text" style="font-size:12px;" onclick="openAddPO('${inv.id}')">+ Add PO</button>` : ''}
       ${shared ? `<span style="font-size:11.5px;color:var(--text-soft);">${shared}</span>` : ''}
     </div>`;
   }
-  function renderPOInput(inv){
+  function renderPOInput(inv, isAdd){
     const example = (poCandidatesFor(inv)[0] || {}).po || 'PO-5512';
     return `<div class="pofield" id="po-field-wrap">
       <div style="position:relative;">
@@ -1756,7 +1765,10 @@
         <div class="po-suggest" id="po-suggest"></div>
       </div>
       <div class="po-error" id="po-error" style="display:none;"></div>
-      <button class="btn btn-go" style="height:36px;padding:0 14px;margin-top:8px;" onclick="linkPO('${inv.id}')">Link PO</button>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+        <button class="btn btn-go" style="height:36px;padding:0 14px;" onclick="linkPO('${inv.id}')">${isAdd ? 'Add PO' : 'Link PO'}</button>
+        ${isAdd ? `<button class="btn-text" style="font-size:12px;" onclick="cancelAddPO('${inv.id}')">Cancel</button>` : ''}
+      </div>
     </div>`;
   }
   function editPO(id){
@@ -1764,6 +1776,21 @@
     if (!inv) return;
     document.getElementById('d-pochips').innerHTML = renderPOInput(inv);
     document.getElementById('po-link-input').focus();
+  }
+  // Adding a second (or third...) PO to an invoice that already has one —
+  // same field, same type-ahead, same linkPO() below, just without
+  // replacing what's already there. Reachable from renderLinkedPO()'s
+  // "+ Add PO" / "+ Add another PO".
+  function openAddPO(id){
+    const inv = findInv(id);
+    if (!inv) return;
+    document.getElementById('d-pochips').innerHTML = renderPOInput(inv, true);
+    document.getElementById('po-link-input').focus();
+  }
+  function cancelAddPO(id){
+    const inv = findInv(id);
+    if (!inv) return;
+    document.getElementById('d-pochips').innerHTML = renderLinkedPO(inv);
   }
 
   /* Linking a PO doesn't just attach a number — it's what lets the match run at
@@ -1793,21 +1820,29 @@
     const raw = (input && input.value.trim()) || '';
 
     // Validate before anything else runs — only a real, same-supplier PO
-    // gets past here. A PO already linked elsewhere is allowed through: a
-    // PO can legitimately be split across several invoices, and
-    // poQtyExceeded() (checked once the match resolves, not here) is what
-    // catches those invoices adding up to more than the PO ordered.
+    // not already on this invoice gets past here. A PO already linked to a
+    // DIFFERENT invoice is allowed through: a PO can legitimately be split
+    // across several invoices, and poQtyExceeded() (checked once the match
+    // resolves, not here) is what catches those invoices adding up to more
+    // than the PO ordered.
     if (!raw) { showPOError('Enter or select a PO number'); return; }
     const match = findPO(raw);
     if (!match) { showPOError(`${raw} isn't a recognized PO number — pick one from the list`); return; }
     if (inv.supplier && match.supplier !== inv.supplier) { showPOError(`${match.po} belongs to ${match.supplier}, not ${inv.supplier}`); return; }
+    if (invPOList(inv).some(p => p.po === match.po)) { showPOError(`${match.po} is already on this invoice`); return; }
     clearPOError();
     hidePOSuggest();
+
+    // First PO on this invoice, or an additional one on top of what's
+    // already there — decided once, up front, since it changes how the
+    // match result gets applied below (replace vs. append) and what the
+    // toast says.
+    const isFirstLink = !inv.po;
 
     // Step 1 — nothing fetched yet: show the linked number and an in-progress
     // state right where the person was just typing, not a separate screen.
     document.getElementById('d-pochips').innerHTML =
-      `<span style="display:inline-flex;align-items:center;gap:8px;color:var(--text-soft);font-size:13px;"><span class="spinner"></span>Matching ${match.po} against goods receipt…</span>`;
+      `<span style="display:inline-flex;align-items:center;gap:8px;color:var(--text-soft);font-size:13px;"><span class="spinner"></span>${isFirstLink ? `Matching ${match.po} against goods receipt…` : `Adding ${match.po} and pulling its lines…`}</span>`;
     document.getElementById('d-statuspill').innerHTML = '<span class="status status-info"><span class="dot"></span>Matching…</span>';
     document.getElementById('d-toolbar').innerHTML = '<span style="color:#9FA89F;font-size:12px;align-self:center;">Matching…</span>';
     document.getElementById('d-footeractions').innerHTML = '';
@@ -1817,15 +1852,52 @@
     // Step 2 — the actual lookup/match; the short delay stands in for the real
     // round trip to the PO and GRN systems.
     setTimeout(() => {
-      const extra = { po: match.po, poDate: match.poDate, matchAttempted: true };
-      if (!inv.lines || !inv.lines.length) extra.lines = match.lines.map(l => ({ ...l, invPrice: l.poPrice }));
-      Object.assign(inv, extra);
+      if (isFirstLink) {
+        const extra = { po: match.po, poDate: match.poDate, matchAttempted: true };
+        if (!inv.lines || !inv.lines.length) extra.lines = match.lines.map(l => ({ ...l, invPrice: l.poPrice }));
+        Object.assign(inv, extra);
+      } else {
+        // Now that there's more than one PO, linePO() can't just infer a
+        // single one anymore — tag the existing lines with the primary PO
+        // explicitly before the new PO's lines join them, or they'd fall
+        // into the "Other" group in the line-items table.
+        (inv.lines || []).forEach(l => { if (!l.po) l.po = inv.po; });
+        inv.extraPOs = (inv.extraPOs || []).concat([{ po: match.po, poDate: match.poDate }]);
+        const newLines = match.lines.map(l => ({ ...l, po: match.po, invPrice: l.poPrice }));
+        inv.lines = (inv.lines || []).concat(newLines);
+      }
       refreshAllTables(); // resolves inv.status and keeps Uploads/Needs/Processed in sync in the background
-      toast(linkOutcomeMessage(inv));
+      toast(isFirstLink ? linkOutcomeMessage(inv) : `${match.po} added — ${match.lines.length} line${match.lines.length>1?'s':''} pulled in`);
       // Step 3 — land back on THIS invoice, now showing whatever the match
       // decided, instead of a list tab the person has to search through.
       openDetail(inv.id, window._detailFrom);
     }, 700);
+  }
+  // The other side of openAddPO()/linkPO() — detach a PO from an invoice
+  // that has more than one. Refuses to go below one (removing the last PO
+  // is Discard's job, not this). Figures out which lines belonged to the
+  // PO being removed BEFORE touching inv.po/extraPOs, since linePO()'s
+  // inference of an untagged line depends on how many POs are still on
+  // the invoice — deciding after the fact would get it wrong for the
+  // now-single-PO case.
+  function removePO(id, poCode){
+    const inv = findInv(id);
+    if (!inv) return;
+    const list = invPOList(inv);
+    if (list.length <= 1) return;
+    const linesToDrop = new Set((inv.lines || []).filter(l => linePO(inv, l) === poCode));
+    if (inv.lines) inv.lines = inv.lines.filter(l => !linesToDrop.has(l));
+    if (inv.po === poCode) {
+      const next = (inv.extraPOs || [])[0];
+      inv.po = next ? next.po : null;
+      inv.poDate = next ? next.poDate : null;
+      inv.extraPOs = (inv.extraPOs || []).slice(1);
+    } else {
+      inv.extraPOs = (inv.extraPOs || []).filter(p => p.po !== poCode);
+    }
+    refreshAllTables();
+    toast(`${poCode} removed${linesToDrop.size ? ` — ${linesToDrop.size} line${linesToDrop.size>1?'s':''} removed with it` : ''}`);
+    openDetail(inv.id, window._detailFrom);
   }
   function continueNotDuplicate(id){ transitionInvoice(id, 'ok', 'Confirmed as unique — matched cleanly against PO and GRN', { duplicateOf: null }); }
   function continueNotDuplicate(id){ transitionInvoice(id, 'ok', 'Confirmed as unique — matched cleanly against PO and GRN', { duplicateOf: null }); }
