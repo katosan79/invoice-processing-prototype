@@ -200,7 +200,11 @@
   .posted-note{ font-size:11.5px; color:var(--text-soft); margin-top:4px; line-height:1.45; max-width:34ch; }
   .exc{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px; display:grid; grid-template-columns:20px 1fr auto; gap:14px; align-items:center; }
   .exc .supplier{ font-weight:700; font-size:13.5px; }
-  .exc .why{ font-size:12.5px; color:var(--text-soft); margin-top:3px; display:flex; gap:8px; align-items:center; }
+  .exc .why{ font-size:12.5px; color:var(--text-soft); margin-top:3px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  /* Two reason pills (Price + Quantity) on one Needs-your-input row, when an
+     invoice has both — sits as a single flex child so the row still wraps
+     to the "why" text normally. */
+  .reason-pills{ display:inline-flex; gap:6px; flex-wrap:wrap; }
   .exc .amt2{ font-size:13px; color:var(--text-soft); margin-left:10px; font-weight:400; }
   .emptystate{ text-align:center; padding:36px 20px; color:var(--text-soft); font-size:13.5px; font-weight:600; }
 

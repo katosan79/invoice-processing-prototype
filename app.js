@@ -344,6 +344,38 @@
     if (inv.status==='warn') return 'status-warn';
     return 'status-ok';
   }
+  // Whether this invoice actually has both a price exception AND a quantity
+  // exception across its lines. inv.reasonTag / computeOutcome() only ever
+  // report one (price is checked first and short-circuits), but the lines
+  // underneath can fail both at once — this scans them directly instead of
+  // trusting the single reasonTag, so the Needs-your-input row can show both
+  // reasons rather than silently dropping one. Only meaningful when the
+  // invoice's primary reason is itself a price/quantity variance (not an
+  // item-set problem like Extra items, which never gets financial checks).
+  function invoiceHasBothPriceAndQtyIssues(inv){
+    if (MATCH_MODE === '2way') return false;
+    if (inv.reasonTag !== 'Price' && inv.reasonTag !== 'Quantity') return false;
+    if (!inv.lines || !inv.lines.length) return false;
+    const relevant = inv.lines.filter(l => !l.extra && !l.unmapped && !l.missing);
+    const hasPriceIssue = relevant.some(l => !withinPriceTolerance(l));
+    const hasQtyIssue = relevant.some(l => l.grn !== null && !withinQtyTolerance(l));
+    return hasPriceIssue && hasQtyIssue;
+  }
+  // The reason pill(s) shown on a Needs-your-input row — one pill normally,
+  // or Price + Quantity stacked side by side when both apply to the same
+  // invoice. Deliberately doesn't touch inv.reasonTag itself: that single
+  // value still drives filtering, the bulk-resolution action, and the
+  // detail-screen header pill elsewhere, and widening those is a bigger,
+  // separate change.
+  function reasonPillsHtml(inv){
+    if (!invoiceHasBothPriceAndQtyIssues(inv)) {
+      return `<span class="status ${reasonClass(inv)}"><span class="dot"></span>${inv.reasonTag}</span>`;
+    }
+    return `<span class="reason-pills">
+      <span class="status status-risk"><span class="dot"></span>Price</span>
+      <span class="status status-warn"><span class="dot"></span>Quantity</span>
+    </span>`;
+  }
   function renderCompleteness(inv){
     if (inv.freshCapture) {
       return `<div class="cstat"><span style="color:var(--text-soft);font-size:12px;">N/A — digitizing…</span></div>`;
@@ -687,7 +719,7 @@
       <input type="checkbox" class="needs-check" data-id="${inv.id}"${NEEDS_SELECTION.has(inv.id) ? ' checked' : ''} onclick="event.stopPropagation()" onchange="toggleNeedsCheck('${inv.id}', this.checked)">
       <div>
         <div class="supplier sup-cell">${supplierAvatar(inv)}<span>${inv.supplier || 'Unknown supplier'} — INV ${inv.id.replace('INV-','')} <span class="amt2">${fmt(inv.amount)}</span></span></div>
-        <div class="why"><span class="status ${reasonClass(inv)}"><span class="dot"></span>${inv.reasonTag}</span>${inv.why}</div>
+        <div class="why">${reasonPillsHtml(inv)}${inv.why}</div>
       </div>
       <button class="btn btn-ghost" onclick="event.stopPropagation();openDetail('${inv.id}','needs')">Review</button>
     </div>`).join('') : `<div class="emptystate">${needs.length ? '✓ No matches — try a different search or filter' : '✓ Nothing needs your input right now'}</div>`;
