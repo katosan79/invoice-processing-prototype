@@ -222,6 +222,7 @@
      specific reason to lead with. This is the single source of truth for
      inv.status — nothing else sets it except a person's explicit action
      (Approve, Export, Discard) or freshly-captured uploads still digitizing. */
+  function round2(n){ return Math.round(n*100)/100; }
   function reconciledTotal(inv){
     // a "missing" line was never invoiced — no invPrice to sum — so it's
     // excluded rather than contributing NaN to the total.
@@ -507,6 +508,45 @@
     if (newValue === (oldValue||'')) return;
     logAudit(inv, label, oldValue, newValue);
     inv[prop] = newValue;
+    toast(`${label} updated`);
+    refreshAllTables();
+    openDetail(inv.id, window._detailFrom);
+  }
+  // Subtotal and GST, next to the source-document preview — these are
+  // usually computed off OCR'd figures and, in practice, land a few cents
+  // wrong. Same field-edit pattern as fieldInput()/commitFieldEdit() above,
+  // but numeric and feeding back into the invoice's own total rather than
+  // just overwriting a display string.
+  function totalsFieldInput(inv, field, label, value){
+    const edited = (inv.auditTrail||[]).some(a => a.field === label);
+    return `<span class="totals-edit-wrap">
+      <input class="li-input num totals-input" value="${value.toFixed(2)}" onchange="commitTotalsEdit('${inv.id}','${field}',this.value)"/>
+      ${edited ? `<span class="edited-tag" title="Corrected by a person — see History">edited</span>` : ''}
+    </span>`;
+  }
+  function commitTotalsEdit(id, field, newValue){
+    const inv = findInv(id);
+    if (!inv) return;
+    const parsed = parseFloat(newValue);
+    if (isNaN(parsed)) { toast('Enter a valid number'); openDetail(inv.id, window._detailFrom); return; }
+    // Subtotal/GST default to a flat 10%-of-amount split (see openDetail())
+    // — but a real OCR'd invoice doesn't necessarily split exactly 10%, so
+    // once a person corrects one, both become their own stored figures
+    // rather than staying derived. Re-deriving on the next render would
+    // otherwise silently drift away from whatever was just typed in.
+    const currentSubtotal = inv.subtotal != null ? inv.subtotal : round2(inv.amount/1.1);
+    const currentGst = inv.gst != null ? inv.gst : round2(inv.amount-currentSubtotal);
+    const oldValue = field === 'subtotal' ? currentSubtotal : currentGst;
+    if (Math.abs(parsed - oldValue) < 0.005) return;
+    const label = field === 'subtotal' ? 'Subtotal' : 'GST';
+    logAudit(inv, label, fmt(oldValue), fmt(parsed));
+    inv.subtotal = field === 'subtotal' ? parsed : currentSubtotal;
+    inv.gst = field === 'gst' ? parsed : currentGst;
+    // Total mismatch (computeOutcome()) compares inv.amount against the sum
+    // of the line items — correcting a subtotal/GST typo here is exactly
+    // the kind of fix that should be able to resolve that exception, so
+    // amount is recomputed from the corrected figures, not left stale.
+    inv.amount = round2(inv.subtotal + inv.gst);
     toast(`${label} updated`);
     refreshAllTables();
     openDetail(inv.id, window._detailFrom);
@@ -1331,11 +1371,15 @@
     } else { marginCard.style.display = 'none'; }
 
     const delivery = inv.deliveryFee || 0, discount = inv.discount || 0;
-    const subtotal = inv.amount/1.1, gst = inv.amount-subtotal;
-    document.getElementById('d-subtotal').textContent = fmt(subtotal);
+    // Subtotal/GST default to a flat 10%-of-amount split until a person
+    // corrects one — see commitTotalsEdit() for why editing either turns
+    // them into their own stored figures instead of staying derived.
+    const subtotal = inv.subtotal != null ? inv.subtotal : round2(inv.amount/1.1);
+    const gst = inv.gst != null ? inv.gst : round2(inv.amount-subtotal);
+    document.getElementById('d-subtotal').innerHTML = totalsFieldInput(inv, 'subtotal', 'Subtotal', subtotal);
     document.getElementById('d-delivery').textContent = fmt(delivery);
     document.getElementById('d-discount').textContent = discount ? '−' + fmt(discount) : fmt(0);
-    document.getElementById('d-gst').textContent = fmt(gst);
+    document.getElementById('d-gst').innerHTML = totalsFieldInput(inv, 'gst', 'GST', gst);
     document.getElementById('d-total').textContent = fmt(inv.amount);
 
     setQueueChromeVisible(false);

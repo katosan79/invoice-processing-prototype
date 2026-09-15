@@ -440,8 +440,18 @@
   .agentcard a:hover{ text-decoration:underline; }
 
   .totals{ padding:22px; }
-  .totals .row{ display:flex; justify-content:space-between; padding:7px 0; font-size:13.5px; color:var(--text-soft); }
+  .totals .row{ display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:13.5px; color:var(--text-soft); }
   .totals .row.total{ color:var(--text); font-weight:700; font-size:16px; border-top:1px solid var(--line); margin-top:6px; padding-top:12px; }
+  /* Subtotal/GST are usually computed off OCR'd figures and land a few
+     cents wrong in practice — editable here, right where the source
+     document sits, so a person corrects them against what they can see.
+     Transparent until hovered/focused so it doesn't look like an input
+     field is expected on every row (Delivery fee/Discount/Total stay
+     plain text). */
+  .totals-edit-wrap{ display:inline-flex; align-items:center; gap:6px; }
+  .totals-input{ width:80px; text-align:right; border-color:transparent; background:transparent; padding:3px 5px; font-size:13.5px; color:var(--text-soft); }
+  .totals-input:hover{ border-color:var(--line); background:var(--surface); }
+  .totals-input:focus{ border-color:var(--fern); background:var(--surface); color:var(--text); }
   .doclabel{ color:var(--text-soft); font-size:12px; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
   .docmock{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px 10px; font-size:10.5px; color:#3a3a3a; min-height:200px; box-shadow:0 1px 4px rgba(0,0,0,.08); position:relative; }
   .docmock .letterhead-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
