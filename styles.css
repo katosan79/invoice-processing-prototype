@@ -98,6 +98,14 @@
       linear-gradient(to left, var(--surface) 50%, rgba(255,255,255,0) 100%) 100% 0,
       linear-gradient(to right, rgba(14,55,39,.12), rgba(14,55,39,0)) 0 0,
       linear-gradient(to left, rgba(14,55,39,.12), rgba(14,55,39,0)) 100% 0;
+    /* The gradients above only paint the scroll-shadow bands near each
+       edge — they never claimed the shorthand's implicit background-color,
+       so the middle of the box (most of every row) had no fill at all and
+       showed the cream page behind it. Set it explicitly as its own
+       declaration so it layers under the gradients instead of replacing
+       them (rows/cells stay transparent on top of this, which is what lets
+       tr.unviewed / tr.rowlink:hover keep showing their own tint). */
+    background-color: var(--surface);
     background-repeat: no-repeat;
     background-size: 24px 100%, 24px 100%, 10px 100%, 10px 100%;
     background-attachment: local, local, scroll, scroll;
