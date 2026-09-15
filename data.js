@@ -117,6 +117,25 @@
         {name:'Roma Tomatoes 5kg',sku:'GFM-TOM-5KG',uom:'box',poPrice:16.50,invPrice:16.50,qty:15,grn:10},
         {name:'Baby Spinach 1kg',sku:'GFM-SPN-1KG',uom:'bag',poPrice:12.00,invPrice:13.50,qty:12,grn:12},
       ] },
+    /* ── no-PO, item-identity-only demo — for the "No matching" policy
+       (see MATCH_MODE in app.js). Under the default 3-way policy this sits
+       pending like any other no-PO invoice ('No PO linked'); switch
+       Matching to "No matching" in Settings to see it auto-post except for
+       the one unmapped line, which still needs a person's input — matching
+       being off never means item identity stops being checked. lines is
+       deliberately empty (no PO to build a working set from); capturedLines
+       is what computeOutcome()/openDetail() read from in this mode. ── */
+    { id:'INV-00910', po:null, poDate:null, supplier:'Fresh Produce Co', outlet:'Surry Hills', date:'16 June, 16:40', source:'photo', amount:156.90, status:'pending', by:'Waihong Chee', viewed:false,
+      // Only shown once MATCH_MODE is switched to 'none' and this resolves
+      // to 'risk' — under the default 3-way policy it's just another no-PO
+      // invoice sitting in Uploads ('No PO linked'), same as INV-00894/97.
+      why:'"Heirloom Carrot Bunch" doesn’t match any item in the market list for Fresh Produce Co — needs to be mapped or added before this can post.',
+      lines:[],
+      capturedLines:[
+        {name:'Iceberg Lettuce (each)',sku:'FPC-ICE-EA',uom:'ea',invPrice:2.20,qty:30},
+        {name:'Cherry Tomatoes 250g',sku:'FPC-CHT-250',uom:'punnet',invPrice:3.50,qty:15},
+        {name:'Heirloom Carrot Bunch',uom:'bunch',invPrice:4.80,qty:8,unmapped:true},
+      ] },
   ];
 
   /* ── PO catalog — stands in for a real PO lookup service. Every open PO a

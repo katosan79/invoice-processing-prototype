@@ -207,7 +207,7 @@
           <div class="linetable-wrap" style="margin-top:8px;">
             <table class="linetable">
               <colgroup><col class="c-drag"><col class="c-desc"><col class="c-qty"><col class="c-grn"><col class="c-size"><col class="c-price"><col class="c-popr"><col class="c-disc"><col class="c-gst"><col class="c-amt"><col class="c-match"><col class="c-del"></colgroup>
-              <thead><tr><th></th><th>Description</th><th>Qty</th><th class="c-grn-cell ref-head">GRN qty</th><th>Unit size</th><th>Unit price</th><th class="ref-head">PO price</th><th>Disc</th><th>GST %</th><th style="text-align:right">Amount</th><th>Match</th><th></th></tr></thead>
+              <thead><tr><th></th><th>Description</th><th>Qty</th><th class="c-grn-cell ref-head">GRN qty</th><th>Unit size</th><th>Unit price</th><th class="c-popr-cell ref-head">PO price</th><th>Disc</th><th>GST %</th><th style="text-align:right">Amount</th><th>Match</th><th></th></tr></thead>
               <tbody id="d-lines"></tbody>
             </table>
             <div class="linetable-actions">
@@ -359,7 +359,16 @@
         </div>
       </label>
 
+      <label class="matchmode-opt" id="opt-none">
+        <input type="radio" name="matchmode" value="none" onchange="previewMatchMode('none')">
+        <div>
+          <div class="t">No matching — process as-is</div>
+          <div class="d">Doesn't require a PO at all, and never checks price or quantity against anything. Items are still checked against the market list — an unmapped item still needs a person's input — but a clean invoice auto-posts on price and quantity you haven't verified.</div>
+        </div>
+      </label>
+
       <div class="matchmode-warn" id="settings-2way-note" style="display:none;"><i class="ti ti-alert-triangle"></i>&nbsp; Lower control: an invoice billing for more than was delivered will no longer be caught automatically.</div>
+      <div class="matchmode-warn danger" id="settings-none-note" style="display:none;"><i class="ti ti-alert-octagon"></i>&nbsp; No control: price and quantity overbilling post automatically, with nothing checking either one first.</div>
 
       <div class="row2">
         <button class="btn btn-ghost" onclick="closeSettingsModal()">Cancel</button>

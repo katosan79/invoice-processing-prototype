@@ -2,10 +2,20 @@
   // Org-wide matching policy — a config, not a per-invoice choice (see the
   // Matching settings modal). '3way' checks price + quantity-vs-GRN;
   // '2way' drops the GRN/goods-receipt leg entirely and checks price
-  // against the PO only. Read by computeOutcome(), runChecks(), and
-  // build3WayMatch() — flip it and every invoice is re-evaluated fresh via
-  // refreshAllTables(), never patched in place.
+  // against the PO only. 'none' drops matching altogether — no PO is
+  // required and price/quantity are never checked; an invoice still has to
+  // be legible, not a duplicate, and identify a supplier, and its items
+  // still have to exist in the market list (an unmapped item is a data
+  // problem, not a matching one — it can't be priced or reconciled against
+  // anything, matching on or off). Read by computeOutcome(), runChecks(),
+  // and build3WayMatch() — flip it and every invoice is re-evaluated fresh
+  // via refreshAllTables(), never patched in place.
   let MATCH_MODE = '3way';
+  // Declared here rather than beside renderMatchModeButton() below — that
+  // function runs during the eager refreshAllTables() call further down
+  // this file, so a `const` declared next to it would still be in its
+  // temporal dead zone at that point (same trap as BULK_RESOLUTIONS above).
+  const MATCH_MODE_LABEL = { '3way':'3-way', '2way':'2-way', 'none':'No matching' };
 
   // Org-wide tolerance policy — same status as MATCH_MODE: a config, not a
   // per-invoice choice, set via the Tolerance settings modal in the Needs
@@ -171,6 +181,7 @@
   // contradicts the status pill. `missing` lines are left out of the
   // denominator — they were never invoiced, so they're not awaiting receipt.
   function grnFieldHtml(inv){
+    if (MATCH_MODE === 'none') return `<span class="grn-empty">Not used — matching is off</span>`;
     if (MATCH_MODE === '2way') return `<span class="grn-empty">Not used — 2-way matching is on</span>`;
     if (inv.legible === false || !inv.po) return `<span class="grn-empty">Not applicable until a PO is linked</span>`;
     const billed = inv.lines.filter(l => !l.missing);
@@ -229,6 +240,19 @@
     // trying to identify it (fuzzy match, new-supplier lookup) and the invoice
     // stays in Uploads rather than jumping to Needs your input.
     if (!inv.supplier) return { status:'pending', reasonTag:null };
+    // 'none' mode: the org has chosen not to match against a PO or GRN at
+    // all — an invoice doesn't need one to post. The one thing that still
+    // gets checked is item identity: `lines` only exists once a PO happens
+    // to be linked anyway, so this reads `capturedLines` (what the document
+    // actually shows, independent of any PO) when there's no `lines` to
+    // check instead. Everything below this branch (PO presence, item-set
+    // composition, GRN, price, qty, total) is matching-specific and never
+    // runs in this mode.
+    if (MATCH_MODE === 'none') {
+      const checkLines = inv.lines.length ? inv.lines : (inv.capturedLines || []);
+      if (checkLines.some(l => l.unmapped)) return { status:'risk', reasonTag:'Unmapped item' };
+      return { status:'ok', reasonTag:null };
+    }
     // no PO — whether the system hasn't searched yet (matchAttempted:false) or it
     // searched and came up empty, this is still a "find/attach the right document"
     // problem, not a financial judgment call — so it stays in Uploads either way.
@@ -277,6 +301,22 @@
   function runChecks(inv){
     const legible = inv.legible !== false;
     const supplierKnown = legible && !!inv.supplier;
+    if (MATCH_MODE === 'none') {
+      // Short checklist to match the short computeOutcome() path for this
+      // mode — no PO/GRN/price/qty/total checkpoints exist to show, because
+      // this policy skips them, not because they're still "in progress".
+      const itemsGated = !legible || !!inv.duplicateOf || !supplierKnown;
+      const checkLines = inv.lines.length ? inv.lines : (inv.capturedLines || []);
+      const unmapped = !itemsGated && checkLines.some(l => l.unmapped);
+      return [
+        { label:'Document legible',        state: legible ? 'pass' : 'fail' },
+        { label:'Supplier identified',     state: !legible ? 'na' : (inv.supplier ? 'pass' : 'wait') },
+        { label:'Invoice number captured', state: legible ? 'pass' : 'na' },
+        { label:'Invoice date captured',   state: legible ? 'pass' : 'na' },
+        { label:'Not a duplicate',         state: !legible ? 'na' : (inv.duplicateOf ? 'fail' : 'pass') },
+        { label:'Items in market list',    state: itemsGated ? 'na' : (unmapped ? 'fail' : 'pass') },
+      ];
+    }
     const twoWay = MATCH_MODE === '2way';
     const total = inv.lines.length, received = inv.lines.filter(l=>l.grn!==null).length;
     const hasGRN = twoWay || (total>0 && received===total);
@@ -971,6 +1011,17 @@
   }
   /* ── 3-way match summary (PO ↔ GRN ↔ Invoice) ── */
   function build3WayMatch(inv){
+    if (MATCH_MODE === 'none') {
+      if (inv.legible === false) return '';
+      const checkLines = inv.lines.length ? inv.lines : (inv.capturedLines || []);
+      if (!checkLines.length) return '';
+      const unmapped = checkLines.filter(l => l.unmapped).length;
+      const cls = unmapped ? 'status-risk' : 'status-info';
+      const summary = unmapped
+        ? `${unmapped} of ${checkLines.length} line${checkLines.length>1?'s':''} not in the market list`
+        : `All ${checkLines.length} line${checkLines.length>1?'s':''} matched to a known item — price and quantity were never checked`;
+      return `<div class="matchbar"><span class="status ${cls}"><span class="dot"></span>No matching</span><span class="matchbar-sum">Processed as-is — ${summary}</span></div>`;
+    }
     if (!inv.po || !inv.lines || !inv.lines.length) return '';
     const twoWay = MATCH_MODE === '2way';
     let matched=0, priceIssues=0, qtyIssues=0, awaitingGrn=0, extra=0, missing=0, unmapped=0;
@@ -1060,16 +1111,51 @@
     document.getElementById('d-outlet').innerHTML = fieldInput(inv,'outlet','Delivered to', inv.outlet || '');
     document.getElementById('d-id').innerHTML = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${fieldInput(inv,'rawReference','Invoice number', inv.rawReference || inv.id)}<button class="btn btn-ghost" style="padding:4px 12px;font-size:12px;flex:none;" onclick="toast('Validated against supplier records')">Validate</button></div>`;
     document.getElementById('d-date').innerHTML = fieldInput(inv,'date','Invoice date', inv.date || '');
-    document.getElementById('d-pohelp').style.display = inv.legible === false ? 'none' : '';
+    document.getElementById('d-pohelp').style.display = (inv.legible === false || MATCH_MODE === 'none') ? 'none' : '';
     document.getElementById('d-pochips').innerHTML = inv.legible === false
       ? `<span style="color:var(--text-soft);font-size:13px;">Not applicable — resolve the image issue above before this can be matched</span>`
-      : inv.po
-        ? renderLinkedPO(inv)
-        : renderPOInput(inv);
+      : MATCH_MODE === 'none'
+        ? `<span style="color:var(--text-soft);font-size:13px;">Not required — matching is off</span>`
+        : inv.po
+          ? renderLinkedPO(inv)
+          : renderPOInput(inv);
     document.getElementById('d-matchbar').innerHTML = build3WayMatch(inv);
     document.getElementById('d-grnfield').innerHTML = grnFieldHtml(inv);
-    document.querySelector('.linetable').classList.toggle('hide-grn', MATCH_MODE === '2way');
-    document.getElementById('d-lines').innerHTML = inv.lines.length ? inv.lines.map((l, idx) => {
+    document.querySelector('.linetable').classList.toggle('hide-grn', MATCH_MODE === '2way' || MATCH_MODE === 'none');
+    document.querySelector('.linetable').classList.toggle('hide-poprice', MATCH_MODE === 'none');
+    // 'none' mode: no PO means `lines` (the PO-matching working set) is
+    // never populated the normal way — fall back to `capturedLines` (what
+    // the document actually shows) so there's still something to display,
+    // same source computeOutcome()/runChecks() already check for unmapped
+    // items in this mode.
+    const displayLines = MATCH_MODE === 'none' && !inv.lines.length ? (inv.capturedLines || []) : inv.lines;
+    document.getElementById('d-lines').innerHTML = displayLines.length ? displayLines.map((l, idx) => {
+      if (MATCH_MODE === 'none') {
+        // Read-only, not editable like the 3-way/2-way rows below: when the
+        // row is sourced from capturedLines (no PO ever linked), there's no
+        // inv.lines[idx] for commitLineEdit() to write back to, and editing
+        // "into" a fake PO-match context that doesn't exist would be
+        // misleading anyway — this is a what-was-captured view, not a
+        // working set.
+        const statusHtml = l.unmapped
+          ? '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'
+          : '<span class="status status-info"><span class="dot"></span>Not checked</span>';
+        const qty = l.qty ?? 0, price = l.invPrice ?? 0;
+        return `<tr>
+          <td class="drag">⠿</td>
+          <td>${escapeHtml(l.name)}<div class="li-sku">${l.sku||''}</div></td>
+          <td>${qty}</td>
+          <td class="c-grn-cell li-ref">—</td>
+          <td>${escapeHtml(l.uom||'—')}</td>
+          <td>${fmt(price)}</td>
+          <td class="li-ref c-popr-cell">—</td>
+          <td>—</td>
+          <td>—</td>
+          <td class="li-amt">${fmt(qty*price)}</td>
+          <td>${statusHtml}</td>
+          <td></td>
+        </tr>`;
+      }
       // A "missing" line is a placeholder for a PO item the invoice never
       // billed at all — there's nothing captured to edit, so it renders as
       // an informational row instead of going through the normal
@@ -1079,7 +1165,7 @@
           <td class="drag">⠿</td>
           <td><span class="li-missing-name">${escapeHtml(l.name)}</span><div class="li-sku">${l.sku||''} · expected ${l.qty} ${l.uom||''} @ ${fmt(l.poPrice)}</div></td>
           <td>—</td><td class="c-grn-cell li-ref">—</td><td>—</td><td>—</td>
-          <td class="li-ref">${fmt(l.poPrice)}</td>
+          <td class="li-ref c-popr-cell">${fmt(l.poPrice)}</td>
           <td>—</td><td>—</td>
           <td class="li-amt">—</td>
           <td><span class="status status-warn"><span class="dot"></span>Not invoiced</span></td>
@@ -1118,14 +1204,14 @@
         <td class="c-grn-cell li-ref${qtyOk ? '' : ' ref-warn'}">${grnCell}</td>
         <td><input class="li-input" value="${escapeHtml(l.uom||'')}" onchange="commitLineEdit('${inv.id}',${idx},'uom','Unit size',this.value)"/></td>
         <td><input class="li-input num" value="${l.invPrice.toFixed(2)}" onchange="commitLineEdit('${inv.id}',${idx},'invPrice','Unit price',this.value)"/></td>
-        <td class="li-ref${priceOk ? '' : ' ref-off'}">${poCell}</td>
+        <td class="li-ref c-popr-cell${priceOk ? '' : ' ref-off'}">${poCell}</td>
         <td><input class="li-input num" value="0"/></td>
         <td><input class="li-input num" value="10"/></td>
         <td class="li-amt">${fmt(l.qty*l.invPrice)}</td>
         <td>${statusHtml}</td>
         <td class="rowdel" onclick="toast('Line removed')">✕</td>
       </tr>`;
-    }).join('') : `<tr><td colspan="12" style="text-align:center;color:var(--text-soft);font-style:italic;padding:14px 0;">${inv.legible === false ? 'No line items — the document could not be read' : 'No PO linked yet — line items unavailable until this is matched'}</td></tr>`;
+    }).join('') : `<tr><td colspan="12" style="text-align:center;color:var(--text-soft);font-style:italic;padding:14px 0;">${inv.legible === false ? 'No line items — the document could not be read' : MATCH_MODE === 'none' ? 'No line items were captured on this document' : 'No PO linked yet — line items unavailable until this is matched'}</td></tr>`;
 
     const marginCard = document.getElementById('d-margincard');
     if (inv.margin) {
@@ -1230,12 +1316,14 @@
      Save, at which point every invoice not already approved/exported is
      re-evaluated against the new policy (see refreshAllTables()). ── */
   function renderMatchModeButton(){
-    document.getElementById('match-settings-btn').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Matching: ' + (MATCH_MODE==='2way' ? '2-way' : '3-way');
+    document.getElementById('match-settings-btn').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Matching: ' + MATCH_MODE_LABEL[MATCH_MODE];
   }
   function previewMatchMode(mode){
     document.getElementById('opt-3way').classList.toggle('sel', mode==='3way');
     document.getElementById('opt-2way').classList.toggle('sel', mode==='2way');
+    document.getElementById('opt-none').classList.toggle('sel', mode==='none');
     document.getElementById('settings-2way-note').style.display = mode==='2way' ? 'flex' : 'none';
+    document.getElementById('settings-none-note').style.display = mode==='none' ? 'flex' : 'none';
   }
   function openSettingsModal(){
     document.querySelector(`input[name="matchmode"][value="${MATCH_MODE}"]`).checked = true;
@@ -1257,7 +1345,7 @@
     if (document.getElementById('v-detail').classList.contains('on') && window._currentInv) {
       openDetail(window._currentInv.id, window._detailFrom);
     }
-    toast(chosen === '2way' ? 'Switched to 2-way match — invoices re-evaluated' : 'Switched to 3-way match — invoices re-evaluated');
+    toast(chosen === 'none' ? 'Matching turned off — invoices re-evaluated' : chosen === '2way' ? 'Switched to 2-way match — invoices re-evaluated' : 'Switched to 3-way match — invoices re-evaluated');
   }
 
   /* ── Tolerance settings — org-wide policy, same status as matching mode:
