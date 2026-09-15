@@ -1033,40 +1033,6 @@
     `;
   }
   /* ── 3-way match summary (PO ↔ GRN ↔ Invoice) ── */
-  // A compact per-PO version of build3WayMatch()'s tally, for the group
-  // header row when an invoice consolidates more than one PO — each group
-  // gets its own read of how it's doing, since one PO on a consolidated
-  // invoice can be clean while another has an exception.
-  function poGroupSummary(lines){
-    const twoWay = MATCH_MODE === '2way';
-    let matched=0, priceIssues=0, qtyIssues=0, awaitingGrn=0, extra=0, missing=0, unmapped=0;
-    lines.forEach(l=>{
-      if (l.missing) { missing++; return; }
-      if (l.unmapped) { unmapped++; return; }
-      if (l.extra) { extra++; return; }
-      const priceOk = withinPriceTolerance(l);
-      if (twoWay) { if (!priceOk) priceIssues++; else matched++; return; }
-      const qtyOk = l.grn===null || withinQtyTolerance(l);
-      if (l.grn===null) awaitingGrn++;
-      else if (!priceOk) priceIssues++;
-      else if (!qtyOk) qtyIssues++;
-      else matched++;
-    });
-    const total = lines.length;
-    const compParts = [];
-    if (unmapped) compParts.push(`${unmapped} not in market list`);
-    if (missing) compParts.push(`${missing} missing`);
-    if (extra) compParts.push(`${extra} not on this PO`);
-    if (compParts.length) return compParts.join(' · ');
-    if (!twoWay && awaitingGrn === total) return `Awaiting GRN on all ${total} line${total>1?'s':''}`;
-    if (priceIssues || qtyIssues) {
-      const parts = [];
-      if (priceIssues) parts.push(`${priceIssues} price exception${priceIssues>1?'s':''}`);
-      if (qtyIssues) parts.push(`${qtyIssues} quantity exception${qtyIssues>1?'s':''}`);
-      return `${matched} of ${total} match · ${parts.join(' · ')}`;
-    }
-    return `All ${total} line${total>1?'s':''} match`;
-  }
   function build3WayMatch(inv){
     if (MATCH_MODE === 'none') {
       if (inv.legible === false) return '';
@@ -1189,113 +1155,75 @@
     document.getElementById('d-grnfield').innerHTML = grnFieldHtml(inv);
     document.querySelector('.linetable').classList.toggle('hide-grn', MATCH_MODE === '2way' || MATCH_MODE === 'none');
     document.querySelector('.linetable').classList.toggle('hide-poprice', MATCH_MODE === 'none');
+    document.querySelector('.linetable').classList.toggle('hide-poqty', MATCH_MODE === 'none');
     // 'none' mode: no PO means `lines` (the PO-matching working set) is
     // never populated the normal way — fall back to `capturedLines` (what
     // the document actually shows) so there's still something to display,
     // same source computeOutcome()/runChecks() already check for unmapped
     // items in this mode.
     const displayLines = MATCH_MODE === 'none' && !inv.lines.length ? (inv.capturedLines || []) : inv.lines;
-    // On a consolidated invoice, the same item can legitimately appear
-    // under more than one PO (different order, same SKU) — each gets its
-    // own row under its own PO's group, since they're genuinely separate
-    // order lines that could carry different prices. But two rows with an
-    // identical description and nothing else distinguishing them reads as
-    // an accidental duplicate, not a deliberate split — this map is what
-    // lets each row note the other PO(s) the same SKU also appears under.
-    const skuToPOs = new Map();
-    if (invPOList(inv).length > 1) {
-      displayLines.forEach(l => {
-        const po = l.sku && linePO(inv, l);
-        if (!po) return;
-        if (!skuToPOs.has(l.sku)) skuToPOs.set(l.sku, new Set());
-        skuToPOs.get(l.sku).add(po);
-      });
+    const multiPO = MATCH_MODE !== 'none' && invPOList(inv).length > 1;
+
+    function renderNoneModeRow(l){
+      const statusHtml = l.unmapped
+        ? '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'
+        : '<span class="status status-info"><span class="dot"></span>Not checked</span>';
+      const qty = l.qty ?? 0, price = l.invPrice ?? 0;
+      return `<tr>
+        <td class="drag">⠿</td>
+        <td>${escapeHtml(l.name)}<div class="li-sku">${l.sku||''}</div></td>
+        <td>${qty}</td>
+        <td class="c-poqty-cell li-ref">—</td>
+        <td class="c-grn-cell li-ref">—</td>
+        <td>${escapeHtml(l.uom||'—')}</td>
+        <td>${fmt(price)}</td>
+        <td class="li-ref c-popr-cell">—</td>
+        <td>—</td>
+        <td>—</td>
+        <td class="li-amt">${fmt(qty*price)}</td>
+        <td>${statusHtml}</td>
+        <td></td>
+      </tr>`;
     }
-    const lineRows = displayLines.map((l, idx) => ({ po: linePO(inv, l), line: l, html: (() => {
-      if (MATCH_MODE === 'none') {
-        // Read-only, not editable like the 3-way/2-way rows below: when the
-        // row is sourced from capturedLines (no PO ever linked), there's no
-        // inv.lines[idx] for commitLineEdit() to write back to, and editing
-        // "into" a fake PO-match context that doesn't exist would be
-        // misleading anyway — this is a what-was-captured view, not a
-        // working set.
-        const statusHtml = l.unmapped
-          ? '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'
-          : '<span class="status status-info"><span class="dot"></span>Not checked</span>';
-        const qty = l.qty ?? 0, price = l.invPrice ?? 0;
-        return `<tr>
-          <td class="drag">⠿</td>
-          <td>${escapeHtml(l.name)}<div class="li-sku">${l.sku||''}</div></td>
-          <td>${qty}</td>
-          <td class="c-grn-cell li-ref">—</td>
-          <td>${escapeHtml(l.uom||'—')}</td>
-          <td>${fmt(price)}</td>
-          <td class="li-ref c-popr-cell">—</td>
-          <td>—</td>
-          <td>—</td>
-          <td class="li-amt">${fmt(qty*price)}</td>
-          <td>${statusHtml}</td>
-          <td></td>
-        </tr>`;
-      }
-      // A "missing" line is a placeholder for a PO item the invoice never
-      // billed at all — there's nothing captured to edit, so it renders as
-      // an informational row instead of going through the normal
-      // match/edit logic below (which assumes a real invoiced qty/price).
-      if (l.missing) {
-        return `<tr class="li-row-missing">
-          <td class="drag">⠿</td>
-          <td><span class="li-missing-name">${escapeHtml(l.name)}</span><div class="li-sku">${l.sku||''} · expected ${l.qty} ${l.uom||''} @ ${fmt(l.poPrice)}</div></td>
-          <td>—</td><td class="c-grn-cell li-ref">—</td><td>—</td><td>—</td>
-          <td class="li-ref c-popr-cell">${fmt(l.poPrice)}</td>
-          <td>—</td><td>—</td>
-          <td class="li-amt">—</td>
-          <td><span class="status status-warn"><span class="dot"></span>Not invoiced</span></td>
-          <td></td>
-        </tr>`;
-      }
-      const twoWay = MATCH_MODE === '2way';
-      const qtyOk = twoWay || l.grn===null || withinQtyTolerance(l);
-      const priceOk = (l.extra || l.unmapped) ? true : withinPriceTolerance(l);
-      let statusHtml;
-      if (l.unmapped) { statusHtml = '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'; }
-      else if (l.extra) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Not on ${linePO(inv,l) || inv.po}</span>`; }
-      else if (!twoWay && l.grn===null) { statusHtml = '<span class="status status-info"><span class="dot"></span>Awaiting GRN</span>'; }
-      else if (!priceOk && !qtyOk) {
-        // A line can fail both checks at once — show one pill per issue
-        // rather than letting price silently win and hide the qty problem
-        // the GRN column shows.
-        const pricePill = `<span class="status status-risk"><span class="dot"></span>${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO</span>`;
-        const qtyPill = `<span class="status status-warn"><span class="dot"></span>Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN</span>`;
-        statusHtml = `<div class="status-stack">${pricePill}${qtyPill}</div>`;
-      }
-      else if (!priceOk) { statusHtml = `<span class="status status-risk"><span class="dot"></span>${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO</span>`; }
-      else if (!qtyOk) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN</span>`; }
-      else { statusHtml = '<span class="status status-ok"><span class="dot"></span>Matches PO</span>'; }
-      // A line can be clean on price and GRN qty and still be part of why
-      // the PO itself is over-billed once every invoice against it is
-      // added up — that's a different relationship (cumulative vs this
-      // invoice's own GRN), so it's stacked as an extra pill rather than
-      // replacing whatever the checks above already decided.
-      if (!l.missing && !l.extra && !l.unmapped && lineExceedsPO(inv, l)) {
-        const exceedPill = '<span class="status status-risk"><span class="dot"></span>Exceeds PO qty (cumulative)</span>';
-        statusHtml = statusHtml.startsWith('<div class="status-stack">')
-          ? statusHtml.replace('</div>', exceedPill + '</div>')
-          : `<div class="status-stack">${statusHtml}${exceedPill}</div>`;
-      }
-      // Reference cells: the GRN's received qty and the PO's agreed price, sat
-      // beside the invoiced figures so the variance is readable inline rather
-      // than only in the Match pill. An extra/unmapped line has neither.
+    function renderMissingRow(l){
+      return `<tr class="li-row-missing">
+        <td class="drag">⠿</td>
+        <td><span class="li-missing-name">${escapeHtml(l.name)}</span><div class="li-sku">${l.sku||''} · expected ${l.qty} ${l.uom||''} @ ${fmt(l.poPrice)}</div></td>
+        <td>—</td><td class="c-poqty-cell li-ref">${l.qty}</td><td class="c-grn-cell li-ref">—</td><td>—</td><td>—</td>
+        <td class="li-ref c-popr-cell">${fmt(l.poPrice)}</td>
+        <td>—</td><td>—</td>
+        <td class="li-amt">—</td>
+        <td><span class="status status-warn"><span class="dot"></span>Not invoiced</span></td>
+        <td></td>
+      </tr>`;
+    }
+    // A single portion, rendered as its own editable row — either a
+    // single-PO invoice (the common case) or an item unique to just one
+    // PO on a consolidated invoice. `poTag` names that PO under the SKU
+    // when there's more than one PO on the invoice to disambiguate.
+    function renderSoloRow(l){
+      const idx = displayLines.indexOf(l);
+      const { qtyOk, priceOk, statusHtml } = computeLineVerdict(inv, l);
+      const poQty = (l.extra || l.unmapped || !l.sku) ? null : poOrderedQty(linePO(inv, l), l.sku);
+      // Tinted only when this line actually pushes the PO over what was
+      // ordered (same check the Match pill uses) — NOT just because this
+      // invoice's own qty differs from the PO's total. A PO legitimately
+      // split across invoices means every single invoice's share will
+      // differ from the total by design; that's not an exception on its
+      // own, so a naive inequality here would false-flag every ordinary
+      // partial invoice against a split PO.
+      const poQtyOk = poQty === null || !lineExceedsPO(inv, l);
+      const poQtyCell = poQty === null ? '<span title="Not tracked for this PO">—</span>' : String(poQty);
       const grnCell = (l.extra || l.unmapped) ? '<span title="Not on the goods receipt">—</span>'
         : l.grn === null ? '<span title="Not received yet">—</span>' : String(l.grn);
       const poCell = (l.extra || l.unmapped) ? '<span title="Not on the purchase order">—</span>' : fmt(l.poPrice);
       const editedTag = l.edited ? ' <span class="li-edited" title="Corrected by a person — see History">·edited</span>' : '';
-      const sharedPOs = l.sku && skuToPOs.has(l.sku) ? [...skuToPOs.get(l.sku)].filter(p => p !== linePO(inv, l)) : [];
-      const alsoOnNote = sharedPOs.length ? `<div class="li-also-on">Also on ${sharedPOs.join(', ')}</div>` : '';
+      const poTag = multiPO ? `<div class="li-also-on">${linePO(inv, l) || ''}</div>` : '';
       return `<tr>
         <td class="drag">⠿</td>
-        <td><input class="li-input" value="${escapeHtml(l.name)}" onchange="commitLineEdit('${inv.id}',${idx},'name','Description',this.value)"/><div class="li-sku">${l.sku||''}${editedTag}</div>${alsoOnNote}</td>
+        <td><input class="li-input" value="${escapeHtml(l.name)}" onchange="commitLineEdit('${inv.id}',${idx},'name','Description',this.value)"/><div class="li-sku">${l.sku||''}${editedTag}</div>${poTag}</td>
         <td><input class="li-input num" value="${l.qty}" onchange="commitLineEdit('${inv.id}',${idx},'qty','Qty',this.value)"/></td>
+        <td class="c-poqty-cell li-ref${poQtyOk ? '' : ' ref-warn'}">${poQtyCell}</td>
         <td class="c-grn-cell li-ref${qtyOk ? '' : ' ref-warn'}">${grnCell}</td>
         <td><input class="li-input" value="${escapeHtml(l.uom||'')}" onchange="commitLineEdit('${inv.id}',${idx},'uom','Unit size',this.value)"/></td>
         <td><input class="li-input num" value="${l.invPrice.toFixed(2)}" onchange="commitLineEdit('${inv.id}',${idx},'invPrice','Unit price',this.value)"/></td>
@@ -1306,32 +1234,74 @@
         <td>${statusHtml}</td>
         <td class="rowdel" onclick="toast('Line removed')">✕</td>
       </tr>`;
-    })() }));
-    const poList = invPOList(inv);
+    }
+    // The same item invoiced across more than one PO on this consolidated
+    // invoice: one row, not two — quantities and amount summed, price
+    // taken as a single value (POs for the same delivery window agree on
+    // price in practice; see the "PO qty" cell below for anything that
+    // doesn't add up), and each portion's own verdict stacked under Match
+    // rather than one silently standing in for both. Read-only — there's
+    // no single inv.lines[idx] a merged row could write an edit back to.
+    function renderMergedRow(portions){
+      const qty = portions.reduce((s,p) => s+p.qty, 0);
+      const anyGrnMissing = portions.some(p => p.grn === null);
+      const grn = anyGrnMissing ? null : portions.reduce((s,p) => s+(p.grn||0), 0);
+      const amount = portions.reduce((s,p) => s + p.qty*p.invPrice, 0);
+      const sample = portions[0];
+      const verdicts = portions.map(p => ({ po: linePO(inv, p) || '', ...computeLineVerdict(inv, p) }));
+      const anyPriceIssue = verdicts.some(v => !v.priceOk);
+      const anyQtyIssue = verdicts.some(v => !v.qtyOk);
+      const statusHtml = `<div class="status-stack">${verdicts.map(v =>
+        `<div class="li-po-verdict"><span class="li-po-verdict-tag">${v.po}</span>${v.statusHtml}</div>`
+      ).join('')}</div>`;
+      const breakdown = portions.map(p => `${p.qty} via ${linePO(inv, p) || '—'}`).join(' · ');
+      // Ordered qty summed across the distinct POs this item was split
+      // across — "—" rather than a partial total if any of them isn't in
+      // PO_CATALOG, since a partial sum would understate it silently.
+      const pos = [...new Set(portions.map(p => linePO(inv, p)).filter(Boolean))];
+      const orderedParts = pos.map(po => poOrderedQty(po, sample.sku));
+      const poQty = orderedParts.some(v => v === null) ? null : orderedParts.reduce((s,v)=>s+v, 0);
+      // Same reasoning as renderSoloRow(): tint only if a portion actually
+      // exceeds its PO, not merely because the merged total (this item
+      // across every OTHER PO too on this invoice) differs from what these
+      // particular POs ordered — an item this invoice doesn't fully cover
+      // isn't itself an exception.
+      const poQtyOk = poQty === null || !portions.some(p => lineExceedsPO(inv, p));
+      const poQtyCell = poQty === null ? '<span title="Not tracked for at least one of these POs">—</span>' : String(poQty);
+      const grnCell = grn === null ? '<span title="Not fully received yet">—</span>' : String(grn);
+      return `<tr>
+        <td class="drag">⠿</td>
+        <td>${escapeHtml(sample.name)}<div class="li-sku">${sample.sku||''}</div><div class="li-also-on">${breakdown}</div></td>
+        <td>${qty}</td>
+        <td class="c-poqty-cell li-ref${poQtyOk ? '' : ' ref-warn'}">${poQtyCell}</td>
+        <td class="c-grn-cell li-ref${anyQtyIssue ? ' ref-warn' : ''}">${grnCell}</td>
+        <td>${escapeHtml(sample.uom||'')}</td>
+        <td>${fmt(sample.invPrice)}</td>
+        <td class="li-ref c-popr-cell${anyPriceIssue ? ' ref-off' : ''}">${fmt(sample.poPrice)}</td>
+        <td>0</td><td>10</td>
+        <td class="li-amt">${fmt(amount)}</td>
+        <td>${statusHtml}</td>
+        <td></td>
+      </tr>`;
+    }
+
     let linesHtml;
-    if (!lineRows.length) {
-      linesHtml = `<tr><td colspan="12" style="text-align:center;color:var(--text-soft);font-style:italic;padding:14px 0;">${inv.legible === false ? 'No line items — the document could not be read' : MATCH_MODE === 'none' ? 'No line items were captured on this document' : 'No PO linked yet — line items unavailable until this is matched'}</td></tr>`;
-    } else if (MATCH_MODE !== 'none' && poList.length > 1) {
-      // Consolidated invoice: cluster lines under the PO they belong to,
-      // each with its own subtotal and match summary — a supplier's
-      // invoice that bundles several POs reads as several small matches,
-      // not one table that silently averages them together. Lines with no
-      // resolvable PO (shouldn't happen once every line on a multi-PO
-      // invoice carries its own `po`, but nothing here assumes that) fall
-      // into a trailing "Other" group rather than being dropped.
-      const byPO = new Map(poList.map(p => [p.po, []]));
-      const other = [];
-      lineRows.forEach(r => (byPO.has(r.po) ? byPO.get(r.po) : other).push(r));
-      const groupHtml = (poCode, poDate, rows) => {
-        if (!rows.length) return '';
-        const summary = poGroupSummary(rows.map(r => r.line));
-        return `<tr class="li-po-group"><td colspan="12"><div class="li-po-group-row"><span class="po-group-label"><i class="ti ti-file-invoice"></i> ${poCode}${poDate ? ' · '+poDate : ''}</span><span class="po-group-sum">${rows.length} line${rows.length>1?'s':''} · ${summary}</span></div></td></tr>`
-          + rows.map(r => r.html).join('');
-      };
-      linesHtml = poList.map(p => groupHtml(p.po, p.poDate, byPO.get(p.po) || [])).join('')
-        + groupHtml('Other', '', other);
+    if (!displayLines.length) {
+      linesHtml = `<tr><td colspan="13" style="text-align:center;color:var(--text-soft);font-style:italic;padding:14px 0;">${inv.legible === false ? 'No line items — the document could not be read' : MATCH_MODE === 'none' ? 'No line items were captured on this document' : 'No PO linked yet — line items unavailable until this is matched'}</td></tr>`;
+    } else if (MATCH_MODE === 'none') {
+      linesHtml = displayLines.map(renderNoneModeRow).join('');
+    } else if (multiPO) {
+      // "Keep the line items unique" — an item billed across more than
+      // one PO gets one row with the split spelled out, not one row per
+      // PO. groupLinesByItem() never merges 'missing' lines (each is its
+      // own placeholder for one PO's specific unfulfilled line).
+      linesHtml = groupLinesByItem(displayLines).map(portions =>
+        portions.length === 1
+          ? (portions[0].missing ? renderMissingRow(portions[0]) : renderSoloRow(portions[0]))
+          : renderMergedRow(portions)
+      ).join('');
     } else {
-      linesHtml = lineRows.map(r => r.html).join('');
+      linesHtml = displayLines.map(l => l.missing ? renderMissingRow(l) : renderSoloRow(l)).join('');
     }
     document.getElementById('d-lines').innerHTML = linesHtml;
 
@@ -1669,6 +1639,51 @@
     if (!po) return false;
     const ordered = poOrderedQty(po, l.sku);
     return ordered !== null && poCumulativeInvoicedQty(po, l.sku) > ordered;
+  }
+  // One line's own verdict — pulled out so a merged row (an item billed
+  // across more than one PO on the same consolidated invoice, see
+  // groupLinesByItem()/openDetail() below) can compute it once per PO
+  // portion and stack the results, rather than duplicating this logic for
+  // the solo and merged cases.
+  function computeLineVerdict(inv, l){
+    const twoWay = MATCH_MODE === '2way';
+    const qtyOk = twoWay || l.grn===null || withinQtyTolerance(l);
+    const priceOk = (l.extra || l.unmapped) ? true : withinPriceTolerance(l);
+    let statusHtml;
+    if (l.unmapped) { statusHtml = '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'; }
+    else if (l.extra) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Not on ${linePO(inv,l) || inv.po}</span>`; }
+    else if (!twoWay && l.grn===null) { statusHtml = '<span class="status status-info"><span class="dot"></span>Awaiting GRN</span>'; }
+    else if (!priceOk && !qtyOk) {
+      const pricePill = `<span class="status status-risk"><span class="dot"></span>${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO</span>`;
+      const qtyPill = `<span class="status status-warn"><span class="dot"></span>Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN</span>`;
+      statusHtml = `<div class="status-stack">${pricePill}${qtyPill}</div>`;
+    }
+    else if (!priceOk) { statusHtml = `<span class="status status-risk"><span class="dot"></span>${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO</span>`; }
+    else if (!qtyOk) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN</span>`; }
+    else { statusHtml = '<span class="status status-ok"><span class="dot"></span>Matches PO</span>'; }
+    if (!l.missing && !l.extra && !l.unmapped && lineExceedsPO(inv, l)) {
+      const exceedPill = '<span class="status status-risk"><span class="dot"></span>Exceeds PO qty (cumulative)</span>';
+      statusHtml = statusHtml.startsWith('<div class="status-stack">')
+        ? statusHtml.replace('</div>', exceedPill + '</div>')
+        : `<div class="status-stack">${statusHtml}${exceedPill}</div>`;
+    }
+    return { qtyOk, priceOk, statusHtml };
+  }
+  // Item-level grouping for a consolidated invoice: the same SKU invoiced
+  // against two POs becomes one group of 2 portions rather than two
+  // separate lines — "keep the line items unique" per product feedback.
+  // 'missing' lines never merge (each is its own placeholder for one PO's
+  // unfulfilled line, not a real invoiced quantity to combine with
+  // anything) — the index.length suffix keeps every missing line its own
+  // group without a real dedup key colliding with a real line's sku/name.
+  function groupLinesByItem(lines){
+    const order = [], groups = new Map();
+    lines.forEach((l, i) => {
+      const key = l.missing ? `__missing_${i}` : (l.sku || l.name);
+      if (!groups.has(key)) { groups.set(key, []); order.push(key); }
+      groups.get(key).push(l);
+    });
+    return order.map(key => groups.get(key));
   }
   // open = (when the invoice's supplier is known) belonging to that same
   // supplier, and not already on THIS invoice (adding the same PO twice

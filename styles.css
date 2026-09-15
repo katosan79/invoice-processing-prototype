@@ -330,18 +330,18 @@
     background-attachment: local, local, scroll, scroll;
     border:1px solid var(--line); border-radius:10px; overflow-x:auto; overflow-y:hidden; margin-top:8px;
   }
-  .linetable{ width:100%; min-width:910px; border-collapse:collapse; font-size:12.5px; table-layout:fixed; }
+  .linetable{ width:100%; min-width:968px; border-collapse:collapse; font-size:12.5px; table-layout:fixed; }
   /* A line failing both price and qty checks gets two stacked pills (one per
      issue) rather than one pill trying to say both — each stays a normal,
      readable status pill instead of a run-on compound string. */
   .status-stack{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
-  .linetable.hide-grn{ min-width:852px; }
-  .linetable.hide-grn.hide-poprice{ min-width:782px; }
-  .linetable col.c-drag{ width:22px; } .linetable col.c-desc{ width:auto; } .linetable col.c-qty{ width:52px; } .linetable col.c-grn{ width:58px; } .linetable col.c-size{ width:64px; } .linetable col.c-price{ width:76px; } .linetable col.c-popr{ width:70px; } .linetable col.c-disc{ width:50px; } .linetable col.c-gst{ width:50px; } .linetable col.c-amt{ width:78px; } .linetable col.c-match{ width:128px; } .linetable col.c-del{ width:22px; }
+  .linetable.hide-grn{ min-width:910px; } /* 2-way: no GRN leg, but still a PO — PO qty stays */
+  .linetable.hide-grn.hide-poprice.hide-poqty{ min-width:782px; } /* 'none': no PO at all */
+  .linetable col.c-drag{ width:22px; } .linetable col.c-desc{ width:auto; } .linetable col.c-qty{ width:52px; } .linetable col.c-poqty{ width:58px; } .linetable col.c-grn{ width:58px; } .linetable col.c-size{ width:64px; } .linetable col.c-price{ width:76px; } .linetable col.c-popr{ width:70px; } .linetable col.c-disc{ width:50px; } .linetable col.c-gst{ width:50px; } .linetable col.c-amt{ width:78px; } .linetable col.c-match{ width:128px; } .linetable col.c-del{ width:22px; }
   /* 2-way matching drops the goods-receipt leg entirely, so the GRN column
      has nothing to say — collapse it rather than showing a column of dashes.
-     'none' mode collapses both GRN and PO price the same way — neither the
-     receipt nor the PO exists to compare against.
+     'none' mode collapses GRN, PO price and PO qty the same way — there's
+     no PO at all to compare against.
      visibility:collapse on the <col> (not display:none on each <th>/<td>)
      is the correct way to hide a column in a table-layout:fixed table —
      display:none on individual cells removes them from the row's layout
@@ -352,6 +352,7 @@
      included, without touching cell-to-col alignment at all). */
   .linetable.hide-grn col.c-grn{ visibility:collapse; }
   .linetable.hide-poprice col.c-popr{ visibility:collapse; }
+  .linetable.hide-poqty col.c-poqty{ visibility:collapse; }
   /* Reference columns: what the PO/GRN says, next to what the invoice says.
      Read-only and visually recessive so the editable cells stay dominant. */
   .linetable th.ref-head{ color:var(--text-soft); font-weight:600; }
@@ -384,27 +385,20 @@
   .linetable .li-input:hover{ border-color:var(--line); background:var(--surface); }
   .linetable .li-input:focus{ border-color:var(--fern); background:var(--surface); }
   .li-sku{ color:var(--text-soft); font-size:10.5px; margin-top:2px; }
-  /* Marks a row whose item also appears under a different PO group on the
-     same consolidated invoice — without this, two rows with an identical
-     description read as an accidental duplicate rather than a deliberate
-     split across POs. */
+  /* Small sky-toned note under an item's SKU on a consolidated invoice —
+     either which single PO a solo row belongs to, or (on a merged row,
+     see renderMergedRow() in app.js) the per-PO quantity breakdown, e.g.
+     "18 via PO-5512 · 5 via PO-5528". */
   .li-also-on{ color:var(--skytext); font-size:10.5px; margin-top:1px; }
   /* a "missing" line is a PO item that was never invoiced — a ghost row,
      not something to edit, so it's visually quieter than a real line */
   .li-row-missing td{ background:var(--surface-soft); color:var(--text-soft); }
   .li-missing-name{ font-style:italic; color:var(--text-soft); text-decoration:line-through; }
-  /* Group-header row separating one consolidated PO's lines from the next —
-     a divider, not a data row, so it reads distinctly from the lines
-     underneath it even though it lives in the same tbody.
-     The flex layout lives on an inner div, not the <td> itself — a colspan
-     cell with display:flex stops sizing itself off the spanned columns in
-     a table-layout:fixed table (it collapsed to the first column's width
-     here), so the <td> stays a normal table-cell and only its content
-     wraps in flex. */
-  .li-po-group td{ background:var(--surface-soft); padding:8px 8px; border-bottom:1px solid var(--line); }
-  .li-po-group-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-  .po-group-label{ font-weight:700; font-size:11.5px; color:var(--text); display:inline-flex; align-items:center; gap:5px; }
-  .po-group-sum{ font-size:11px; color:var(--text-soft); }
+  /* A merged row's Match column stacks one verdict per PO portion — each
+     gets a small PO-code tag so a stack of two pills reads as "PO-5512:
+     Matches, PO-5528: 6.9% vs PO" rather than two unlabeled pills. */
+  .li-po-verdict{ display:flex; align-items:center; gap:6px; }
+  .li-po-verdict-tag{ font-size:9.5px; font-weight:700; color:var(--text-soft); white-space:nowrap; }
   .li-amt{ text-align:right; font-weight:700; white-space:nowrap; }
   .linetable-actions{ display:flex; gap:18px; flex-wrap:wrap; padding:10px 12px; background:var(--surface-soft); }
   .linetable-actions button{ background:none; border:none; color:var(--fern); font-weight:700; font-size:12.5px; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; gap:5px; }
