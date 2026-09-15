@@ -316,6 +316,9 @@
   .matchmode-warn{ display:flex; gap:8px; font-size:11.5px; color:var(--suntext); background:var(--sunbg); border-radius:8px; padding:9px 11px; margin-top:12px; line-height:1.5; }
 
   /* ── tolerance settings modal ── */
+  .tol-change-link{ color:var(--fern); font-weight:600; text-decoration:none; }
+  .tol-change-link:hover{ text-decoration:underline; }
+
   .tol-row{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; }
   .tol-row label{ font-size:13.5px; font-weight:700; }
   .tol-input-wrap{ display:flex; align-items:center; gap:6px; border:1.5px solid var(--line); border-radius:8px; padding:6px 10px; }

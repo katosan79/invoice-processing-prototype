@@ -73,11 +73,8 @@
     <!-- ═══ NEEDS YOUR INPUT ═══ -->
     <section class="view" id="v-needs">
       <div class="bulkbar">
-        <label><input type="checkbox" onchange="if(this.checked) openModal(); else this.checked=false;"> Approve all selected under configured tolerance (<span id="tol-bulkbar-copy">±2% price · ±1% qty</span>)</label>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <button class="btn btn-ghost" id="tol-settings-btn" onclick="openToleranceModal()">⚙ Tolerances</button>
-          <button class="btn btn-ghost" disabled>Approve selected (0)</button>
-        </div>
+        <label><input type="checkbox" onchange="if(this.checked) openModal(); else this.checked=false;"> Approve all selected under configured tolerance (<span id="tol-bulkbar-copy">±2% price · ±1% qty</span> · <a href="#" class="tol-change-link" onclick="event.preventDefault();openToleranceModal();">Change</a>)</label>
+        <button class="btn btn-ghost" disabled>Approve selected (0)</button>
       </div>
       <div class="listbar">
         <div class="search"><span class="ic">🔍</span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('needs','query',this.value)"></div>

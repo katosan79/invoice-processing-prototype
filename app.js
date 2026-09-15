@@ -921,11 +921,8 @@
      not already approved/exported is re-evaluated against the new
      tolerance (see refreshAllTables()). ── */
   function renderToleranceCopy(){
-    const copy = `±${PRICE_TOLERANCE_PCT}% price · ±${QTY_TOLERANCE_PCT}% qty`;
-    const btn = document.getElementById('tol-settings-btn');
     const bulk = document.getElementById('tol-bulkbar-copy');
-    if (btn) btn.textContent = '⚙ Tolerances: ' + copy;
-    if (bulk) bulk.textContent = copy;
+    if (bulk) bulk.textContent = `±${PRICE_TOLERANCE_PCT}% price · ±${QTY_TOLERANCE_PCT}% qty`;
   }
   function openToleranceModal(){
     document.getElementById('tol-price-input').value = PRICE_TOLERANCE_PCT;
