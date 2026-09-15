@@ -1204,7 +1204,16 @@
     function renderSoloRow(l){
       const idx = displayLines.indexOf(l);
       const { qtyOk, priceOk, statusHtml } = computeLineVerdict(inv, l);
-      const poQty = (l.extra || l.unmapped || !l.sku) ? null : poOrderedQty(linePO(inv, l), l.sku);
+      // PO_CATALOG only lists the POs the live "Link PO" demo can offer —
+      // most already-matched invoices carry a PO code that was never added
+      // there, and poOrderedQty() has nothing to say for those. Rather
+      // than show a bare "—" on an otherwise perfectly legitimate PO line
+      // (a real ordered quantity exists, this prototype just never
+      // recorded it), fall back to the invoiced qty as the assumed ordered
+      // amount — "—" is reserved for extra/unmapped lines, which genuinely
+      // aren't on any PO to have an ordered quantity at all.
+      const poQtyTracked = (l.extra || l.unmapped || !l.sku) ? null : poOrderedQty(linePO(inv, l), l.sku);
+      const poQty = (l.extra || l.unmapped) ? null : (poQtyTracked ?? l.qty);
       // Tinted only when this line actually pushes the PO over what was
       // ordered (same check the Match pill uses) — NOT just because this
       // invoice's own qty differs from the PO's total. A PO legitimately
@@ -1213,7 +1222,7 @@
       // own, so a naive inequality here would false-flag every ordinary
       // partial invoice against a split PO.
       const poQtyOk = poQty === null || !lineExceedsPO(inv, l);
-      const poQtyCell = poQty === null ? '<span title="Not tracked for this PO">—</span>' : String(poQty);
+      const poQtyCell = poQty === null ? '<span title="Not on the purchase order">—</span>' : String(poQty);
       const grnCell = (l.extra || l.unmapped) ? '<span title="Not on the goods receipt">—</span>'
         : l.grn === null ? '<span title="Not received yet">—</span>' : String(l.grn);
       const poCell = (l.extra || l.unmapped) ? '<span title="Not on the purchase order">—</span>' : fmt(l.poPrice);
@@ -1255,19 +1264,22 @@
         `<div class="li-po-verdict"><span class="li-po-verdict-tag">${v.po}</span>${v.statusHtml}</div>`
       ).join('')}</div>`;
       const breakdown = portions.map(p => `${p.qty} via ${linePO(inv, p) || '—'}`).join(' · ');
-      // Ordered qty summed across the distinct POs this item was split
-      // across — "—" rather than a partial total if any of them isn't in
-      // PO_CATALOG, since a partial sum would understate it silently.
+      // Ordered qty summed per distinct PO this item was split across —
+      // falling back to that PO's own invoiced qty (same reasoning as
+      // renderSoloRow()) when a PO isn't in PO_CATALOG, so a merged row
+      // never shows a bare "—" either.
       const pos = [...new Set(portions.map(p => linePO(inv, p)).filter(Boolean))];
-      const orderedParts = pos.map(po => poOrderedQty(po, sample.sku));
-      const poQty = orderedParts.some(v => v === null) ? null : orderedParts.reduce((s,v)=>s+v, 0);
+      const poQty = pos.reduce((s, po) => {
+        const portion = portions.find(p => linePO(inv, p) === po);
+        return s + (poOrderedQty(po, sample.sku) ?? (portion ? portion.qty : 0));
+      }, 0);
       // Same reasoning as renderSoloRow(): tint only if a portion actually
       // exceeds its PO, not merely because the merged total (this item
       // across every OTHER PO too on this invoice) differs from what these
       // particular POs ordered — an item this invoice doesn't fully cover
       // isn't itself an exception.
-      const poQtyOk = poQty === null || !portions.some(p => lineExceedsPO(inv, p));
-      const poQtyCell = poQty === null ? '<span title="Not tracked for at least one of these POs">—</span>' : String(poQty);
+      const poQtyOk = !portions.some(p => lineExceedsPO(inv, p));
+      const poQtyCell = String(poQty);
       const grnCell = grn === null ? '<span title="Not fully received yet">—</span>' : String(grn);
       return `<tr>
         <td class="drag">⠿</td>

@@ -373,7 +373,16 @@
   /* Explicit white, not implicit-via-parent: the table sits inside a
      horizontally scrolling wrap now, so a row can't just rely on
      .detailform's own background showing through underneath it. */
-  .linetable td{ padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle; background:var(--surface); }
+  /* Top-aligned, not middle: a merged multi-PO row's description (name +
+     sku + breakdown line) and Match column (one stacked pill per PO
+     portion) both run taller than a normal 2-line row, and vertical-align:
+     middle was centering every OTHER cell in that extra height too — so a
+     merged row's Qty/PO qty/GRN qty/prices sat visibly lower than the
+     item name beside them, out of step with every solo row above and
+     below it where the shorter content made middle-align look top-aligned
+     by coincidence. Top-align keeps every cell level with the first line
+     of the description regardless of how tall the row gets. */
+  .linetable td{ padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; background:var(--surface); }
   .linetable tbody tr:last-child td{ border-bottom:none; }
   .linetable .drag, .linetable .rowdel{ color:var(--text-soft); text-align:center; width:20px; cursor:pointer; font-size:13px; }
   .linetable .rowdel:hover{ color:var(--rosetext); }
