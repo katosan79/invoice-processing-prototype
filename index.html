@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Invoice Review Prototype</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.46.0/dist/tabler-icons.min.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <div class="topstrip">🧪 Prototype — proposed redesign for invoice capture, exception review &amp; status. <b>Not the live product.</b></div>
+  <div class="topstrip"><i class="ti ti-flask-2"></i> Prototype — proposed redesign for invoice capture, exception review &amp; status. <b>Not the live product.</b></div>
 
   <div class="shell">
     <aside class="sidebar">
-      <div class="brand"><span class="mark">🌱</span><span class="word">nomni <em>Procure</em></span></div>
+      <div class="brand"><span class="mark"><i class="ti ti-leaf"></i></span><span class="word">nomni <em>Procure</em></span></div>
       <nav class="navlist">
         <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</button>
         <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>Reports</button>
@@ -35,9 +36,9 @@
         <h1 id="page-title">Invoices</h1>
         <div class="actions">
           <div class="topbar-queue-actions" id="topbar-queue-actions">
-            <button class="btn btn-quiet" id="daterange-btn" onclick="openDateRangeModal()">📅 All time</button>
-            <button class="btn btn-quiet" id="match-settings-btn" onclick="openSettingsModal()">⚙ Matching: 3-way</button>
-            <button class="btn btn-go" onclick="openUploadModal()">↑ Upload invoice</button>
+            <button class="btn btn-quiet" id="daterange-btn" onclick="openDateRangeModal()"><i class="ti ti-calendar"></i> All time</button>
+            <button class="btn btn-quiet" id="match-settings-btn" onclick="openSettingsModal()"><i class="ti ti-adjustments-horizontal"></i> Matching: 3-way</button>
+            <button class="btn btn-go" onclick="openUploadModal()"><i class="ti ti-upload"></i> Upload invoice</button>
           </div>
           <div class="help-user">Help &nbsp;·&nbsp; Keith Tan ▾</div>
         </div>
@@ -57,7 +58,7 @@
     <!-- ═══ UPLOADS ═══ -->
     <section class="view on" id="v-uploads">
       <div class="listbar">
-        <div class="search"><span class="ic">🔍</span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('uploads','query',this.value)"></div>
+        <div class="search"><span class="ic"><i class="ti ti-search"></i></span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('uploads','query',this.value)"></div>
         <select onchange="updateListCtl('uploads','outlet',this.value)">
           <option value="">All outlets</option>
           <option>Bondi Beach</option><option>Newtown</option><option>Parramatta Table</option><option>Melbourne CBD</option><option>Surry Hills</option>
@@ -83,7 +84,7 @@
         <button class="btn btn-ghost" disabled>Approve selected (0)</button>
       </div>
       <div class="listbar">
-        <div class="search"><span class="ic">🔍</span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('needs','query',this.value)"></div>
+        <div class="search"><span class="ic"><i class="ti ti-search"></i></span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('needs','query',this.value)"></div>
         <select onchange="updateListCtl('needs','reason',this.value)">
           <option value="">Any reason</option>
           <option>Price</option><option>Quantity</option><option>Total mismatch</option><option>Extra items</option><option>Items missing</option><option>Items differ from PO</option><option>Unmapped item</option>
@@ -110,7 +111,7 @@
         <button class="sf-btn" data-sf="exported" onclick="setProcFilter('exported')">Exported <span class="n"></span></button>
       </div>
       <div class="listbar">
-        <div class="search"><span class="ic">🔍</span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('proc','query',this.value)"></div>
+        <div class="search"><span class="ic"><i class="ti ti-search"></i></span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('proc','query',this.value)"></div>
         <select onchange="updateListCtl('proc','outlet',this.value)">
           <option value="">All outlets</option>
           <option>Bondi Beach</option><option>Newtown</option><option>Parramatta Table</option><option>Melbourne CBD</option><option>Surry Hills</option>
@@ -190,7 +191,7 @@
             <div class="linetable-actions">
               <button onclick="toast('New blank line added')">+ Add SKU</button>
               <button onclick="toast('Add new — from catalogue or free text')">Add new ▾</button>
-              <button onclick="toast('Market list data refreshed')">↻ Refresh market list data</button>
+              <button onclick="toast('Market list data refreshed')"><i class="ti ti-refresh"></i> Refresh market list data</button>
             </div>
           </div>
 
@@ -203,7 +204,7 @@
         </div>
 
         <div class="totals">
-          <div class="doclabel">📄 Source document</div>
+          <div class="doclabel"><i class="ti ti-file-text"></i> Source document</div>
           <div class="docmock" id="d-docmock"></div>
           <div class="docpages" id="d-docpages" style="display:none;">
             <button id="d-docprev" onclick="changeDocPage(-1)">‹</button>
@@ -281,7 +282,7 @@
 
       <div class="zone" id="zone" style="margin-top:16px;">
         <input type="file" id="filein" accept="image/*,application/pdf"/>
-        <div class="glyph">📷</div>
+        <div class="glyph"><i class="ti ti-camera"></i></div>
         <div class="t1" id="zoneLabel">Drag and drop files here or click to upload</div>
         <div class="t2">JPG, PNG or PDF · up to 15MB — large photos are compressed automatically</div>
       </div>
@@ -294,7 +295,7 @@
         <div class="pagelist" id="pageList"></div>
       </div>
 
-      <div class="footnote"><span class="dot">✓</span><span>Every invoice gets the same duplicate check, whether it's a photo, a PDF, an email attachment, or PEPPOL.</span></div>
+      <div class="footnote"><span class="dot"><i class="ti ti-check"></i></span><span>Every invoice gets the same duplicate check, whether it's a photo, a PDF, an email attachment, or PEPPOL.</span></div>
 
       <div class="row2">
         <button class="btn btn-ghost" onclick="closeUploadModal()">Cancel</button>
@@ -330,7 +331,7 @@
         </div>
       </label>
 
-      <div class="matchmode-warn" id="settings-2way-note" style="display:none;">⚠️&nbsp; Lower control: an invoice billing for more than was delivered will no longer be caught automatically.</div>
+      <div class="matchmode-warn" id="settings-2way-note" style="display:none;"><i class="ti ti-alert-triangle"></i>&nbsp; Lower control: an invoice billing for more than was delivered will no longer be caught automatically.</div>
 
       <div class="row2">
         <button class="btn btn-ghost" onclick="closeSettingsModal()">Cancel</button>

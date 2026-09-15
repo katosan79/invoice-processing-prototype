@@ -110,10 +110,10 @@
     return `<span class="sup-avatar" style="width:${size}px;height:${size}px;font-size:${fs}px;background:${color};" title="${inv.supplier}">${supplierInitials(inv.supplier)}</span>`;
   }
   function srcBadge(s){
-    if (s==='peppol') return '<span class="badge-src src-peppol">🛰️ PEPPOL</span>';
-    if (s==='email')  return '<span class="badge-src src-email">✉️ Email</span>';
-    if (s==='upload')  return '<span class="badge-src src-pdf">📄 Web</span>';
-    return '<span class="badge-src src-photo">📷 Mobile</span>';
+    if (s==='peppol') return '<span class="badge-src src-peppol"><i class="ti ti-broadcast"></i> PEPPOL</span>';
+    if (s==='email')  return '<span class="badge-src src-email"><i class="ti ti-mail"></i> Email</span>';
+    if (s==='upload')  return '<span class="badge-src src-pdf"><i class="ti ti-file-text"></i> Web</span>';
+    return '<span class="badge-src src-photo"><i class="ti ti-camera"></i> Mobile</span>';
   }
   function pagesBadge(inv){
     const n = inv.pages || 1;
@@ -393,7 +393,7 @@
     const el = document.getElementById('d-history');
     const n = (inv.auditTrail||[]).length;
     el.innerHTML = n
-      ? `<button class="history-btn" onclick="event.stopPropagation();toggleHistory(this,'${inv.id}')">🕓 History <span style="opacity:.75">(${n})</span></button>`
+      ? `<button class="history-btn" onclick="event.stopPropagation();toggleHistory(this,'${inv.id}')"><i class="ti ti-clock"></i> History <span style="opacity:.75">(${n})</span></button>`
       : '';
   }
   function toggleHistory(btnEl, id){
@@ -609,7 +609,7 @@
         <td>${renderCompleteness(inv)}</td>
         <td style="white-space:nowrap;">
           ${viewBtn}
-          <button class="btn-icon-del" title="Delete this upload" onclick="event.stopPropagation();openDeleteModal('${inv.id}')">🗑️</button>
+          <button class="btn-icon-del" title="Delete this upload" onclick="event.stopPropagation();openDeleteModal('${inv.id}')"><i class="ti ti-trash"></i></button>
         </td>
       </tr>`;
     }).join('') : `<tr><td colspan="7"><div class="emptystate">${uploads.length ? '✓ No matches — try a different search or filter' : '✓ Nothing in flight — every capture has been matched or triaged'}</div></td></tr>`;
@@ -700,27 +700,27 @@
 
   /* ── Status-specific top toolbar (dochead) ── */
   function buildToolbar(inv){
-    const refresh = `<button onclick="toast('Refreshing extracted data…')">↻ Refresh data</button>`;
+    const refresh = `<button onclick="toast('Refreshing extracted data…')"><i class="ti ti-refresh"></i> Refresh data</button>`;
     if (inv.status === 'exported') return `<span style="color:#9FA89F;font-size:12px;align-self:center;">Exported to ${inv.exportedTo||ACCOUNTING_SYSTEM} · read-only</span>`;
     if (inv.status === 'approved') return refresh + `<button style="background:var(--fern);border-color:var(--fern);color:#fff;font-weight:700;" onclick="exportInvoice('${inv.id}')">Export to ${ACCOUNTING_SYSTEM}</button>`;
     if (inv.status === 'ok')       return refresh + `<button style="background:var(--fern);border-color:var(--fern);color:#fff;font-weight:700;" onclick="approveInvoice('${inv.id}')">Approve</button>`;
-    if (inv.legible === false)    return `<button onclick="toast('Reupload requested — the uploader will be asked for a clearer capture')">📷 Request re-upload</button><button style="background:var(--rose);border-color:var(--rose);color:#fff;font-weight:700;" onclick="rejectUpload('${inv.id}')">🗑️ Reject upload</button>`;
+    if (inv.legible === false)    return `<button onclick="toast('Reupload requested — the uploader will be asked for a clearer capture')"><i class="ti ti-camera"></i> Request re-upload</button><button style="background:var(--rose);border-color:var(--rose);color:#fff;font-weight:700;" onclick="rejectUpload('${inv.id}')"><i class="ti ti-trash"></i> Reject upload</button>`;
     if (inv.duplicateOf)          return `<span style="color:#9FA89F;font-size:12px;align-self:center;">Matched against ${inv.duplicateOf} — confirm below before this proceeds</span>`;
     if (inv.status === 'pending' && inv.supplier && !inv.po && inv.matchAttempted !== false)
-      return refresh + `<span style="color:#9FA89F;font-size:12px;align-self:center;">No matching PO found — link one manually below</span><button onclick="openDeleteModal('${inv.id}')">🗑️ Delete upload</button>`;
-    if (inv.status === 'pending')  return refresh + `<span style="color:#9FA89F;font-size:12px;align-self:center;">Awaiting GRN before matching can complete</span><button onclick="openDeleteModal('${inv.id}')">🗑️ Delete upload</button>`;
+      return refresh + `<span style="color:#9FA89F;font-size:12px;align-self:center;">No matching PO found — link one manually below</span><button onclick="openDeleteModal('${inv.id}')"><i class="ti ti-trash"></i> Delete upload</button>`;
+    if (inv.status === 'pending')  return refresh + `<span style="color:#9FA89F;font-size:12px;align-self:center;">Awaiting GRN before matching can complete</span><button onclick="openDeleteModal('${inv.id}')"><i class="ti ti-trash"></i> Delete upload</button>`;
     // risk / warn — an exception still being reviewed
     return refresh + `<button onclick="discardInvoice('${inv.id}')">Discard</button><button onclick="toast('Draft saved')">Save draft</button><button style="background:var(--fern);border-color:var(--fern);color:#fff;font-weight:700;" onclick="approveInvoice('${inv.id}','Invoice posted')">Post invoice</button>`;
   }
 
   /* ── Status-specific footer (below the line items / totals) ── */
   function buildFooter(inv){
-    const chat = `<button class="btn-text" onclick="toast('Opens a colleague-review thread on this invoice')">💬 Check with a colleague</button>`;
+    const chat = `<button class="btn-text" onclick="toast('Opens a colleague-review thread on this invoice')"><i class="ti ti-message-circle"></i> Check with a colleague</button>`;
     if (inv.legible === false) {
       return `<div style="font-size:12px;color:var(--text-soft);">Not a valid invoice yet — reject it or ask for a clearer capture above</div>${chat}`;
     }
     if (inv.duplicateOf) {
-      return `<div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-go" onclick="discardInvoice('${inv.id}')">🗑️ Discard as duplicate</button><button class="btn btn-ghost" onclick="continueNotDuplicate('${inv.id}')">Not a duplicate — continue</button></div>${chat}`;
+      return `<div style="display:flex;gap:10px;flex-wrap:wrap;"><button class="btn btn-go" onclick="discardInvoice('${inv.id}')"><i class="ti ti-trash"></i> Discard as duplicate</button><button class="btn btn-ghost" onclick="continueNotDuplicate('${inv.id}')">Not a duplicate — continue</button></div>${chat}`;
     }
     if (inv.status === 'pending' && inv.supplier && !inv.po && inv.matchAttempted !== false) {
       return `<div style="font-size:12px;color:var(--text-soft);">Enter the PO number above, under Order number, to link it manually</div>${chat}`;
@@ -737,15 +737,15 @@
       // Flag for follow-up / Notify manager are the safe options.
       let primary = '';
       if (inv.status === 'warn' && inv.reasonTag === 'Items missing') {
-        primary = `<button class="btn btn-go" onclick="approveInvoice('${inv.id}','Accepted as short-shipped — PO line stays open for the missing item')">📦 Accept as short-shipped</button>`;
+        primary = `<button class="btn btn-go" onclick="approveInvoice('${inv.id}','Accepted as short-shipped — PO line stays open for the missing item')"><i class="ti ti-package"></i> Accept as short-shipped</button>`;
       } else if (inv.status === 'warn' && inv.reasonTag === 'Extra items') {
         primary = '';
       } else if (inv.status === 'warn') {
-        primary = `<button class="btn btn-go" onclick="approveInvoice('${inv.id}','Credit note drafted — invoice marked resolved')">🧾 Raise credit note</button>`;
+        primary = `<button class="btn btn-go" onclick="approveInvoice('${inv.id}','Credit note drafted — invoice marked resolved')"><i class="ti ti-receipt-2"></i> Raise credit note</button>`;
       } else {
-        primary = `<button class="btn btn-go" onclick="approveInvoice('${inv.id}','Approved with override — logged to audit trail')">✓ Approve anyway</button>`;
+        primary = `<button class="btn btn-go" onclick="approveInvoice('${inv.id}','Approved with override — logged to audit trail')"><i class="ti ti-check"></i> Approve anyway</button>`;
       }
-      return `<div style="display:flex;gap:10px;flex-wrap:wrap;">${primary}<button class="btn btn-ghost" onclick="toast('Flagged for follow-up')">🚩 Flag for follow-up</button><button class="btn btn-ghost" onclick="toast('Manager notified — Priya Shah will review')">🔔 Notify manager</button></div>${chat}`;
+      return `<div style="display:flex;gap:10px;flex-wrap:wrap;">${primary}<button class="btn btn-ghost" onclick="toast('Flagged for follow-up')"><i class="ti ti-flag"></i> Flag for follow-up</button><button class="btn btn-ghost" onclick="toast('Manager notified — Priya Shah will review')"><i class="ti ti-bell"></i> Notify manager</button></div>${chat}`;
     }
     return `${chat}<div style="font-size:12px;color:var(--text-soft);">One action bar — no more split top/bottom controls</div>`;
   }
@@ -784,7 +784,7 @@
   function buildDocMockup(inv, page){
     if (inv.legible === false) {
       return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:170px;color:#b0b0b0;text-align:center;gap:8px;">
-        <div style="font-size:30px;">🌫️</div>
+        <div style="font-size:30px;"><i class="ti ti-cloud-fog"></i></div>
         <div style="font-size:11.5px;font-weight:700;color:#8a8a8a;">Image unreadable</div>
         <div style="font-size:10px;max-width:210px;line-height:1.5;">Too blurry to extract a supplier, invoice number, or amount</div>
       </div>`;
@@ -1025,7 +1025,7 @@
      Save, at which point every invoice not already approved/exported is
      re-evaluated against the new policy (see refreshAllTables()). ── */
   function renderMatchModeButton(){
-    document.getElementById('match-settings-btn').textContent = '⚙ Matching: ' + (MATCH_MODE==='2way' ? '2-way' : '3-way');
+    document.getElementById('match-settings-btn').innerHTML = '<i class="ti ti-adjustments-horizontal"></i> Matching: ' + (MATCH_MODE==='2way' ? '2-way' : '3-way');
   }
   function previewMatchMode(mode){
     document.getElementById('opt-3way').classList.toggle('sel', mode==='3way');
@@ -1101,7 +1101,7 @@
   function fmtShortDate(d){ return d.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}); }
   function renderDateRangeCopy(){
     const btn = document.getElementById('daterange-btn');
-    if (btn) btn.textContent = '📅 ' + DR_PRESET_LABEL[DATE_RANGE.preset];
+    if (btn) btn.innerHTML = '<i class="ti ti-calendar"></i> ' + DR_PRESET_LABEL[DATE_RANGE.preset];
     const scope = document.getElementById('statrow-scope');
     if (!scope) return;
     scope.textContent = DATE_RANGE.preset === 'all'
@@ -1328,7 +1328,7 @@
     const warn = document.getElementById('del-warning');
     if (inv.po) {
       warn.style.display = '';
-      warn.textContent = `⚠️ Already linked to ${inv.po} — deleting it won't remove that PO, just this invoice.`;
+      warn.innerHTML = `<i class="ti ti-alert-triangle"></i> Already linked to ${inv.po} — deleting it won't remove that PO, just this invoice.`;
     } else {
       warn.style.display = 'none';
     }
@@ -1399,7 +1399,7 @@
     document.getElementById('pageCount').textContent = pages.length;
     document.getElementById('pageList').innerHTML = pages.map((p,i) => `
       <div class="pageitem">
-        <span class="ic">${p.isPdf ? '📄' : '🖼️'}</span>
+        <span class="ic">${p.isPdf ? '<i class="ti ti-file-text"></i>' : '<i class="ti ti-photo"></i>'}</span>
         <span class="nm">Page ${i+1} · ${p.name}</span>
         <span class="sz">${p.mb} MB</span>
         <button class="rm" onclick="removePage(${i})">✕</button>
