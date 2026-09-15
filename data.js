@@ -6,7 +6,7 @@
   const INV = [
     { id:'INV-00895', po:'PO-5515', poDate:'12 June 2026', supplier:'Sydney Butchers Co.', outlet:'Bondi Beach', date:'12 June, 09:40', source:'email', amount:209.0, status:'pending', by:'Keith Tan', viewed:true,
       lines:[{name:'Chicken Thigh 2kg',sku:'CHK-THI-2KG',uom:'pkg',poPrice:11.50,invPrice:11.50,qty:8,grn:null},{name:'Beef Mince 500g',sku:'BEEF-MIN-500',uom:'pkg',poPrice:9.80,invPrice:9.80,qty:10,grn:null}] },
-    { id:'INV-00892', po:'PO-5519', poDate:'11 June 2026', supplier:'Green Farmers Market', outlet:'Newtown', date:'11 June, 14:12', source:'upload', amount:932.58, status:'pending', by:'Idayu', pages:3, viewed:false,
+    { id:'INV-00892', grnRef:'GRN-3401', po:'PO-5519', poDate:'11 June 2026', supplier:'Green Farmers Market', outlet:'Newtown', date:'11 June, 14:12', source:'upload', amount:932.58, status:'pending', by:'Idayu', pages:3, viewed:false,
       lines:[
         {name:'Mixed Leaf 2kg',sku:'GFM-MXL-2KG',uom:'bag',poPrice:9.00,invPrice:9.00,qty:12,grn:12},
         {name:'Roma Tomatoes 5kg',sku:'GFM-TOM-5KG',uom:'box',poPrice:16.50,invPrice:16.50,qty:20,grn:20},
@@ -24,23 +24,23 @@
     { id:'INV-00903', po:'PO-5524', poDate:'14 June 2026', supplier:'Metro Bakery Supplies', outlet:'Bondi Beach', date:'14 June, 15:30', source:'upload', amount:260.7, status:'pending', by:'Waihong Chee', viewed:true,
       lines:[{name:'Sourdough Loaf (each)',sku:'MBS-SRD-EA',uom:'ea',poPrice:5.50,invPrice:5.50,qty:30,grn:null},{name:'Croissant 6-pack',sku:'MBS-CRO-6PK',uom:'pkg',poPrice:9.00,invPrice:9.00,qty:8,grn:null}] },
     { id:'INV-00904', po:null, poDate:null, supplier:null, outlet:'Newtown', date:'15 June, 09:50', source:'email', amount:0, status:'pending', by:'Keith Tan', viewed:false, freshCapture:true, lines:[] },
-    { id:'INV-00891', po:'PO-5510', poDate:'9 June 2026', supplier:'Green Farmers Market', outlet:'Parramatta Table', date:'9 June, 11:05', source:'upload', amount:158.4, status:'ok', by:'Waihong Chee',
+    { id:'INV-00891', grnRef:'GRN-3402', po:'PO-5510', poDate:'9 June 2026', supplier:'Green Farmers Market', outlet:'Parramatta Table', date:'9 June, 11:05', source:'upload', amount:158.4, status:'ok', by:'Waihong Chee',
       lines:[{name:'Mixed Leaf 2kg',sku:'GFM-MXL-2KG',uom:'bag',poPrice:9.00,invPrice:9.00,qty:16,grn:16}] },
-    { id:'INV-00884', po:'PO-5518', poDate:'14 June 2026', supplier:'Pacific Drinks Wholesale', outlet:'Melbourne CBD', date:'14 June, 08:22', source:'peppol', amount:95.04, status:'ok', by:'PEPPOL',
+    { id:'INV-00884', grnRef:'GRN-3403', po:'PO-5518', poDate:'14 June 2026', supplier:'Pacific Drinks Wholesale', outlet:'Melbourne CBD', date:'14 June, 08:22', source:'peppol', amount:95.04, status:'ok', by:'PEPPOL',
       lines:[{name:'Sparkling Water 1L',sku:'PDW-SPK-1L',uom:'btl',poPrice:1.80,invPrice:1.80,qty:48,grn:48}] },
-    { id:'INV-00889', po:'PO-5509', poDate:'9 June 2026', supplier:'Harbour Meats', outlet:'Bondi Beach', date:'9 June, 16:40', source:'email', amount:1406.24, status:'risk', by:'Keith Tan',
+    { id:'INV-00889', grnRef:'GRN-3404', po:'PO-5509', poDate:'9 June 2026', supplier:'Harbour Meats', outlet:'Bondi Beach', date:'9 June, 16:40', source:'email', amount:1406.24, status:'risk', by:'Keith Tan',
       why:'Chicken Breast +6.2%, Salmon Fillet +19.3% above PO — S$170 overbilled', reasonTag:'Price',
       lines:[
         {name:'Chicken Breast 500g',sku:'HM-CHKB-500',uom:'kg',poPrice:8.40,invPrice:8.92,qty:40,grn:40},
         {name:'Salmon Fillet 200g',sku:'HM-SLMF-200',uom:'kg',poPrice:32.20,invPrice:38.40,qty:24,grn:24},
       ] },
-    { id:'INV-00887', po:'PO-5508', poDate:'8 June 2026', supplier:'Harbour Meats', outlet:'Newtown', date:'8 June, 13:10', source:'email', amount:349.8, status:'warn', by:'Keith Tan',
+    { id:'INV-00887', grnRef:'GRN-3405', po:'PO-5508', poDate:'8 June 2026', supplier:'Harbour Meats', outlet:'Newtown', date:'8 June, 13:10', source:'email', amount:349.8, status:'warn', by:'Keith Tan',
       why:'GRN confirms 8 Beef Short Rib + 4 Lamb Rack received — invoice bills for 12 and 6 — S$106 overbilled', reasonTag:'Quantity',
       lines:[
         {name:'Beef Short Rib 500g',sku:'HM-BSR-500',uom:'pkg',poPrice:12.50,invPrice:12.50,qty:12,grn:8},
         {name:'Lamb Rack (each)',sku:'HM-LMR-EA',uom:'ea',poPrice:28.00,invPrice:28.00,qty:6,grn:4},
       ] },
-    { id:'INV-00885', po:'PO-5507', poDate:'7 June 2026', supplier:'Green Farmers Market', outlet:'Surry Hills', date:'7 June, 15:52', source:'email', amount:587.4, status:'risk', by:'Idayu',
+    { id:'INV-00885', grnRef:'GRN-3406', po:'PO-5507', poDate:'7 June 2026', supplier:'Green Farmers Market', outlet:'Surry Hills', date:'7 June, 15:52', source:'email', amount:587.4, status:'risk', by:'Idayu',
       why:'"Avocado" (each) +16.7% vs PO ($2.40 → $2.80) — no pre-approved price increase on file', reasonTag:'Price',
       lines:[
         {name:'Mixed Leaf 2kg',sku:'GFM-MXL-2KG',uom:'bag',poPrice:9.00,invPrice:9.00,qty:10,grn:10},
@@ -49,9 +49,9 @@
         {name:'Baby Spinach 1kg',sku:'GFM-SPN-1KG',uom:'bag',poPrice:12.00,invPrice:12.00,qty:12,grn:12},
       ],
       margin:{ headline:'Affects Avocado Toast v3 — now above target food cost', sub:'Food cost 28% → 34.7% · +16.7% Avocado price hasn’t been re-costed into the recipe yet' } },
-    { id:'INV-00880', po:'PO-5502', poDate:'5 June 2026', supplier:'Fresh Produce Co', outlet:'Surry Hills', date:'5 June, 10:30', source:'upload', amount:77.0, status:'approved', by:'Keith Tan',
+    { id:'INV-00880', grnRef:'GRN-3407', po:'PO-5502', poDate:'5 June 2026', supplier:'Fresh Produce Co', outlet:'Surry Hills', date:'5 June, 10:30', source:'upload', amount:77.0, status:'approved', by:'Keith Tan',
       lines:[{name:'Cherry Tomatoes 250g',sku:'FPC-CHT-250',uom:'punnet',poPrice:3.50,invPrice:3.50,qty:20,grn:20}] },
-    { id:'INV-00876', po:'PO-5499', poDate:'1 June 2026', supplier:'Sydney Butchers Co.', outlet:'Bondi Beach', date:'1 June, 09:15', source:'email', amount:94.38, status:'exported', by:'Keith Tan', exportedTo:'Xero',
+    { id:'INV-00876', grnRef:'GRN-3408', po:'PO-5499', poDate:'1 June 2026', supplier:'Sydney Butchers Co.', outlet:'Bondi Beach', date:'1 June, 09:15', source:'email', amount:94.38, status:'exported', by:'Keith Tan', exportedTo:'Xero',
       lines:[{name:'Chicken Breast 500g',sku:'SBC-CHKB-500',uom:'pkg',poPrice:7.15,invPrice:7.15,qty:12,grn:12}] },
     { id:'INV-00897', po:null, poDate:null, supplier:'Harbour Meats', outlet:null, date:'12 June, 11:02', source:'email', amount:364, status:'pending', by:'Keith Tan',
       why:'No PO reference — high-confidence match found: PO-5512, same supplier, amount within 1%', reasonTag:'No PO linked', lines:[],
@@ -61,7 +61,7 @@
       capturedLines:[{name:'Sourdough Loaf (each)', qty:14, invPrice:5.50},{name:'Croissant 6-pack', qty:6, invPrice:9.00}] },
     { id:'INV-00898', po:null, poDate:null, supplier:null, outlet:'Bondi Beach', date:'12 June, 17:20', source:'photo', viaGRN:true, grnRef:'GRN-3381', amount:0, status:'invalid', legible:false, by:'Keith Tan',
       why:'Image too blurry to read — no supplier, invoice number, or amount could be extracted', reasonTag:'Unreadable', lines:[] },
-    { id:'INV-00899', po:'PO-5499', poDate:'1 June 2026', supplier:'Sydney Butchers Co.', outlet:'Bondi Beach', date:'2 June, 10:05', source:'email', amount:94.38, status:'duplicate', by:'Keith Tan',
+    { id:'INV-00899', grnRef:'GRN-3409', po:'PO-5499', poDate:'1 June 2026', supplier:'Sydney Butchers Co.', outlet:'Bondi Beach', date:'2 June, 10:05', source:'email', amount:94.38, status:'duplicate', by:'Keith Tan',
       duplicateOf:'INV-00876', why:'Same supplier, PO, amount and invoice date as INV-00876 — already exported to Xero 1 day earlier', reasonTag:'Duplicate',
       lines:[{name:'Chicken Breast 500g',sku:'SBC-CHKB-500',uom:'pkg',poPrice:7.15,invPrice:7.15,qty:12,grn:12}] },
     /* ── item-set mismatches: the invoice and PO don't describe the same
@@ -69,7 +69,7 @@
        PO number here (5530+) is invented for this invoice alone, not drawn
        from PO_CATALOG, so it doesn't remove a candidate from the live
        "link a PO" type-ahead demo above. ── */
-    { id:'INV-00905', po:'PO-5530', poDate:'15 June 2026', supplier:'Green Farmers Market', outlet:'Newtown', date:'16 June, 10:15', source:'email', amount:434.50, status:'warn', by:'Idayu',
+    { id:'INV-00905', grnRef:'GRN-3410', po:'PO-5530', poDate:'15 June 2026', supplier:'Green Farmers Market', outlet:'Newtown', date:'16 June, 10:15', source:'email', amount:434.50, status:'warn', by:'Idayu',
       why:'Invoice includes Cherry Tomatoes 250g × 10 — not on PO-5530. Supplier may have added it from a request outside Procure.', reasonTag:'Extra items',
       lines:[
         {name:'Mixed Leaf 2kg',sku:'GFM-MXL-2KG',uom:'bag',poPrice:9.00,invPrice:9.00,qty:20,grn:20},
@@ -80,7 +80,7 @@
       // it; "extra" above is about PO-5530 not listing the third one, not
       // about anything being missing from the capture.
       capturedLines:[{name:'Mixed Leaf 2kg',qty:20,invPrice:9.00},{name:'Avocado (each)',qty:75,invPrice:2.40},{name:'Cherry Tomatoes 250g',qty:10,invPrice:3.50}] },
-    { id:'INV-00906', po:'PO-5531', poDate:'15 June 2026', supplier:'Harbour Meats', outlet:'Parramatta Table', date:'16 June, 08:30', source:'email', amount:180.40, status:'warn', by:'Keith Tan',
+    { id:'INV-00906', grnRef:'GRN-3411', po:'PO-5531', poDate:'15 June 2026', supplier:'Harbour Meats', outlet:'Parramatta Table', date:'16 June, 08:30', source:'email', amount:180.40, status:'warn', by:'Keith Tan',
       why:'Pork Ribs 1kg (16kg on PO-5531) is not on this invoice — supplier may be out of stock.', reasonTag:'Items missing',
       lines:[
         {name:'Chicken Wings 1kg',sku:'HM-CHW-1KG',uom:'kg',poPrice:8.20,invPrice:8.20,qty:20,grn:20},
@@ -89,7 +89,7 @@
       // the document itself only lists Chicken Wings — Pork Ribs was never
       // captured because the supplier never invoiced it, which is the point.
       capturedLines:[{name:'Chicken Wings 1kg',qty:20,invPrice:8.20}] },
-    { id:'INV-00907', po:'PO-5532', poDate:'15 June 2026', supplier:'Metro Bakery Supplies', outlet:'Bondi Beach', date:'16 June, 12:05', source:'upload', amount:242.00, status:'risk', by:'Waihong Chee',
+    { id:'INV-00907', grnRef:'GRN-3412', po:'PO-5532', poDate:'15 June 2026', supplier:'Metro Bakery Supplies', outlet:'Bondi Beach', date:'16 June, 12:05', source:'upload', amount:242.00, status:'risk', by:'Waihong Chee',
       why:'"Cinnamon Scrolls 4-pack" doesn’t match any item in the market list for Metro Bakery Supplies — needs to be mapped or added before this can be matched.', reasonTag:'Unmapped item',
       lines:[
         {name:'Sourdough Loaf (each)',sku:'MBS-SRD-EA',uom:'ea',poPrice:5.50,invPrice:5.50,qty:20,grn:20},

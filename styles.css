@@ -290,9 +290,38 @@
   .li-input.invalid{ border-color:var(--rose) !important; }
 
   /* ── editable line-items table (matches the real digitization screen's field set) ── */
-  .linetable-wrap{ border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-top:8px; }
-  .linetable{ width:100%; border-collapse:collapse; font-size:12.5px; table-layout:fixed; }
-  .linetable col.c-drag{ width:22px; } .linetable col.c-desc{ width:auto; } .linetable col.c-qty{ width:52px; } .linetable col.c-size{ width:64px; } .linetable col.c-price{ width:76px; } .linetable col.c-disc{ width:50px; } .linetable col.c-gst{ width:50px; } .linetable col.c-amt{ width:78px; } .linetable col.c-match{ width:118px; } .linetable col.c-del{ width:22px; }
+  /* The GRN qty / PO price reference columns push the fixed-width total past
+     what a narrow detail pane can give, so this scrolls sideways (with the
+     same scroll-shadow affordance as the queue tables) instead of crushing
+     the Description column. */
+  .linetable-wrap{
+    background:
+      linear-gradient(to right, var(--surface) 50%, rgba(255,255,255,0) 100%) 0 0,
+      linear-gradient(to left, var(--surface) 50%, rgba(255,255,255,0) 100%) 100% 0,
+      linear-gradient(to right, rgba(14,55,39,.12), rgba(14,55,39,0)) 0 0,
+      linear-gradient(to left, rgba(14,55,39,.12), rgba(14,55,39,0)) 100% 0;
+    background-repeat: no-repeat;
+    background-size: 24px 100%, 24px 100%, 10px 100%, 10px 100%;
+    background-attachment: local, local, scroll, scroll;
+    border:1px solid var(--line); border-radius:10px; overflow-x:auto; overflow-y:hidden; margin-top:8px;
+  }
+  .linetable{ width:100%; min-width:900px; border-collapse:collapse; font-size:12.5px; table-layout:fixed; }
+  .linetable.hide-grn{ min-width:842px; }
+  .linetable col.c-drag{ width:22px; } .linetable col.c-desc{ width:auto; } .linetable col.c-qty{ width:52px; } .linetable col.c-grn{ width:58px; } .linetable col.c-size{ width:64px; } .linetable col.c-price{ width:76px; } .linetable col.c-popr{ width:70px; } .linetable col.c-disc{ width:50px; } .linetable col.c-gst{ width:50px; } .linetable col.c-amt{ width:78px; } .linetable col.c-match{ width:118px; } .linetable col.c-del{ width:22px; }
+  /* 2-way matching drops the goods-receipt leg entirely, so the GRN column
+     has nothing to say — collapse it rather than showing a column of dashes. */
+  .linetable.hide-grn col.c-grn{ width:0; }
+  .linetable.hide-grn .c-grn-cell{ display:none; }
+  /* Reference columns: what the PO/GRN says, next to what the invoice says.
+     Read-only and visually recessive so the editable cells stay dominant. */
+  .linetable th.ref-head{ color:var(--text-soft); font-weight:600; }
+  .linetable td.li-ref{ text-align:right; font-variant-numeric:tabular-nums; color:var(--text-soft); font-size:12px; padding-right:14px; }
+  .linetable td.li-ref.ref-off{ color:var(--rosetext); font-weight:700; }
+  .linetable td.li-ref.ref-warn{ color:var(--suntext); font-weight:700; }
+  .grn-field{ font-size:13px; }
+  .grn-ref{ display:inline-flex; align-items:center; gap:6px; font-weight:700; color:var(--text); }
+  .grn-sub{ color:var(--text-soft); font-size:11.5px; margin-top:3px; }
+  .grn-empty{ color:var(--text-soft); font-size:13px; font-style:italic; }
   .linetable th{ background:var(--surface-soft); font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-soft); font-weight:700; padding:8px 9px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
   .linetable td{ padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
   .linetable tbody tr:last-child td{ border-bottom:none; }

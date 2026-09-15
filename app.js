@@ -165,6 +165,27 @@
   function grnBadge(inv){
     return inv.viaGRN ? `<span class="pagesbadge">· via GRN${inv.grnRef ? ' '+inv.grnRef : ''}</span>` : '';
   }
+  // The "Goods receipt" field on the detail screen — the third document in the
+  // 3-way match, sat beside the order number. Counts use the same definition of
+  // "received" as computeOutcome() (l.grn !== null) so the sub-line never
+  // contradicts the status pill. `missing` lines are left out of the
+  // denominator — they were never invoiced, so they're not awaiting receipt.
+  function grnFieldHtml(inv){
+    if (MATCH_MODE === '2way') return `<span class="grn-empty">Not used — 2-way matching is on</span>`;
+    if (inv.legible === false || !inv.po) return `<span class="grn-empty">Not applicable until a PO is linked</span>`;
+    const billed = inv.lines.filter(l => !l.missing);
+    const total = billed.length, received = billed.filter(l => l.grn !== null).length;
+    if (received === 0) {
+      return inv.grnRef
+        ? `<div class="grn-field"><span class="grn-ref"><i class="ti ti-truck-delivery"></i>${inv.grnRef}</span><div class="grn-sub">Captured from this receipt — no lines matched to it yet</div></div>`
+        : `<span class="grn-empty">Awaiting goods receipt</span>`;
+    }
+    const ref = inv.grnRef || 'Received';
+    return `<div class="grn-field">
+      <span class="grn-ref"><i class="ti ti-truck-delivery"></i>${ref}</span>
+      <div class="grn-sub">${received} of ${total} line${total === 1 ? '' : 's'} received${received < total ? ' — the rest are still open' : ''}</div>
+    </div>`;
+  }
   const STATUS_HTML = {
     pending:  '<span class="status status-warn"><span class="dot"></span>Awaiting PO match</span>',
     ok:       '<span class="status status-ok"><span class="dot"></span>Ready — auto-post pending</span>',
@@ -999,6 +1020,8 @@
         ? renderLinkedPO(inv)
         : renderPOInput(inv);
     document.getElementById('d-matchbar').innerHTML = build3WayMatch(inv);
+    document.getElementById('d-grnfield').innerHTML = grnFieldHtml(inv);
+    document.querySelector('.linetable').classList.toggle('hide-grn', MATCH_MODE === '2way');
     document.getElementById('d-lines').innerHTML = inv.lines.length ? inv.lines.map((l, idx) => {
       // A "missing" line is a placeholder for a PO item the invoice never
       // billed at all — there's nothing captured to edit, so it renders as
@@ -1008,7 +1031,9 @@
         return `<tr class="li-row-missing">
           <td class="drag">⠿</td>
           <td><span class="li-missing-name">${escapeHtml(l.name)}</span><div class="li-sku">${l.sku||''} · expected ${l.qty} ${l.uom||''} @ ${fmt(l.poPrice)}</div></td>
-          <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
+          <td>—</td><td class="c-grn-cell li-ref">—</td><td>—</td><td>—</td>
+          <td class="li-ref">${fmt(l.poPrice)}</td>
+          <td>—</td><td>—</td>
           <td class="li-amt">—</td>
           <td><span class="status status-warn"><span class="dot"></span>Not invoiced</span></td>
           <td></td>
@@ -1017,27 +1042,35 @@
       const twoWay = MATCH_MODE === '2way';
       const qtyOk = twoWay || l.grn===null || withinQtyTolerance(l);
       const priceOk = (l.extra || l.unmapped) ? true : withinPriceTolerance(l);
-      let statusHtml, priceNote = '';
+      let statusHtml;
       if (l.unmapped) { statusHtml = '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'; }
       else if (l.extra) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Not on ${inv.po}</span>`; }
       else if (!twoWay && l.grn===null) { statusHtml = '<span class="status status-info"><span class="dot"></span>Awaiting GRN</span>'; }
-      else if (!priceOk) { statusHtml = `<span class="status status-risk"><span class="dot"></span>${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO</span>`; priceNote = `<div class="li-sku" style="color:var(--rosetext);">PO ${fmt(l.poPrice)} → Invoiced ${fmt(l.invPrice)}</div>`; }
-      else if (!qtyOk) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN</span>`; priceNote = `<div class="li-sku" style="color:var(--suntext);">GRN qty ${l.grn} → Invoiced ${l.qty}</div>`; }
+      else if (!priceOk) { statusHtml = `<span class="status status-risk"><span class="dot"></span>${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO</span>`; }
+      else if (!qtyOk) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN</span>`; }
       else { statusHtml = '<span class="status status-ok"><span class="dot"></span>Matches PO</span>'; }
+      // Reference cells: the GRN's received qty and the PO's agreed price, sat
+      // beside the invoiced figures so the variance is readable inline rather
+      // than only in the Match pill. An extra/unmapped line has neither.
+      const grnCell = (l.extra || l.unmapped) ? '<span title="Not on the goods receipt">—</span>'
+        : l.grn === null ? '<span title="Not received yet">—</span>' : String(l.grn);
+      const poCell = (l.extra || l.unmapped) ? '<span title="Not on the purchase order">—</span>' : fmt(l.poPrice);
       const editedTag = l.edited ? ' <span class="li-edited" title="Corrected by a person — see History">·edited</span>' : '';
       return `<tr>
         <td class="drag">⠿</td>
-        <td><input class="li-input" value="${escapeHtml(l.name)}" onchange="commitLineEdit('${inv.id}',${idx},'name','Description',this.value)"/><div class="li-sku">${l.sku||''}${editedTag}</div>${priceNote}</td>
+        <td><input class="li-input" value="${escapeHtml(l.name)}" onchange="commitLineEdit('${inv.id}',${idx},'name','Description',this.value)"/><div class="li-sku">${l.sku||''}${editedTag}</div></td>
         <td><input class="li-input num" value="${l.qty}" onchange="commitLineEdit('${inv.id}',${idx},'qty','Qty',this.value)"/></td>
+        <td class="c-grn-cell li-ref${qtyOk ? '' : ' ref-warn'}">${grnCell}</td>
         <td><input class="li-input" value="${escapeHtml(l.uom||'')}" onchange="commitLineEdit('${inv.id}',${idx},'uom','Unit size',this.value)"/></td>
         <td><input class="li-input num" value="${l.invPrice.toFixed(2)}" onchange="commitLineEdit('${inv.id}',${idx},'invPrice','Unit price',this.value)"/></td>
+        <td class="li-ref${priceOk ? '' : ' ref-off'}">${poCell}</td>
         <td><input class="li-input num" value="0"/></td>
         <td><input class="li-input num" value="10"/></td>
         <td class="li-amt">${fmt(l.qty*l.invPrice)}</td>
         <td>${statusHtml}</td>
         <td class="rowdel" onclick="toast('Line removed')">✕</td>
       </tr>`;
-    }).join('') : `<tr><td colspan="10" style="text-align:center;color:var(--text-soft);font-style:italic;padding:14px 0;">${inv.legible === false ? 'No line items — the document could not be read' : 'No PO linked yet — line items unavailable until this is matched'}</td></tr>`;
+    }).join('') : `<tr><td colspan="12" style="text-align:center;color:var(--text-soft);font-style:italic;padding:14px 0;">${inv.legible === false ? 'No line items — the document could not be read' : 'No PO linked yet — line items unavailable until this is matched'}</td></tr>`;
 
     const marginCard = document.getElementById('d-margincard');
     if (inv.margin) {

@@ -499,9 +499,10 @@
         <div class="body">
           <div class="feat"><div class="k">1</div><div><h3>Status header and contextual action bar</h3><p>The blocker in plain language, and only the actions that state allows — Post invoice, Raise credit note, Accept as short-shipped, Request re-upload, Reject.</p><span class="why">No generic toolbar the user has to decode.</span></div></div>
           <div class="feat"><div class="k">2</div><div><h3>Three-part hierarchy</h3><p>Invoice details → match summary → line items. The match bar is visually its own band so it reads as something the system is telling you, not a field you filled in.</p><span class="why">Separates evidence from input.</span></div></div>
-          <div class="feat"><div class="k">3</div><div><h3>Per-line match status</h3><p>Each line shows its own verdict — "6.2% vs PO", "Qty +4 vs GRN", "Not on PO-5530", "Awaiting GRN" — with the PO and invoiced figures underneath.</p><span class="why">Pinpoints the disputed line instead of flagging the invoice.</span></div></div>
-          <div class="feat"><div class="k">4</div><div><h3>Source document alongside</h3><p>A rendering of the captured document — invoice and delivery dates, PO reference, bill-to/deliver-to, line items, GST and total — next to the extracted data.</p><span class="why">Verify an extraction without opening the original file.</span></div></div>
-          <div class="feat"><div class="k">5</div><div><h3>Edit history and pager</h3><p>Every line edit is attributed and timestamped; arrow keys page through the filtered queue you arrived from.</p><span class="why">Review a batch without bouncing back to the list.</span></div></div>
+          <div class="feat"><div class="k">3</div><div><h3>All three documents on one line</h3><p>Every line carries the invoiced qty and price next to the <b>GRN qty</b> received and the <b>PO price</b> agreed, plus its own verdict — "6.2% vs PO", "Qty +4 vs GRN", "Not on PO-5530", "Awaiting GRN". Under 2-way matching the GRN column disappears.</p><span class="why">The variance is arithmetic the reviewer can see, not a claim they have to trust.</span></div></div>
+          <div class="feat"><div class="k">4</div><div><h3>Goods receipt named on the invoice</h3><p>The GRN reference sits beside the order number — the two documents being matched against — with how many lines have actually been received against it.</p><span class="why">"Awaiting GRN" stops being a mystery: you can see which receipt, and how much of it landed.</span></div></div>
+          <div class="feat"><div class="k">5</div><div><h3>Source document alongside</h3><p>A rendering of the captured document — invoice and delivery dates, PO reference, bill-to/deliver-to, line items, GST and total — next to the extracted data.</p><span class="why">Verify an extraction without opening the original file.</span></div></div>
+          <div class="feat"><div class="k">6</div><div><h3>Edit history and pager</h3><p>Every line edit is attributed and timestamped; arrow keys page through the filtered queue you arrived from.</p><span class="why">Review a batch without bouncing back to the list.</span></div></div>
         </div>
       </div>
     </div>
@@ -584,10 +585,19 @@
    returning reader scans to see what changed since they last looked.
    ════════════════════════════════════════════════════════════════════ */
 const DECK = {
-  version: '0.2',
+  version: '0.3',
   updated: '15 September 2026',
   status: 'Draft — for internal review',
   changelog: [
+    {
+      v: '0.3',
+      date: '15 Sep 2026',
+      notes: [
+        'The goods receipt is now a visible document, not an invisible gate. Its reference sits beside the order number on the invoice detail screen, with how many lines have actually been received against it.',
+        'Line items gained two reference columns — GRN qty beside the invoiced qty, PO price beside the invoiced price — so each variance is arithmetic the reviewer can check rather than a verdict they have to accept. The GRN column collapses under 2-way matching.',
+        'Invoice-detail callouts renumbered to cover both.',
+      ],
+    },
     {
       v: '0.2',
       date: '15 Sep 2026',
