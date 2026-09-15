@@ -1046,6 +1046,13 @@
       if (l.unmapped) { statusHtml = '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'; }
       else if (l.extra) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Not on ${inv.po}</span>`; }
       else if (!twoWay && l.grn===null) { statusHtml = '<span class="status status-info"><span class="dot"></span>Awaiting GRN</span>'; }
+      else if (!priceOk && !qtyOk) {
+        // A line can fail both checks at once — say so rather than letting
+        // price silently win and hide the qty problem the GRN column shows.
+        const pricePart = `${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO`;
+        const qtyPart = `Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN`;
+        statusHtml = `<span class="status status-risk"><span class="dot"></span>${pricePart} · ${qtyPart}</span>`;
+      }
       else if (!priceOk) { statusHtml = `<span class="status status-risk"><span class="dot"></span>${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO</span>`; }
       else if (!qtyOk) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN</span>`; }
       else { statusHtml = '<span class="status status-ok"><span class="dot"></span>Matches PO</span>'; }

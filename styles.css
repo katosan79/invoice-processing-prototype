@@ -305,9 +305,13 @@
     background-attachment: local, local, scroll, scroll;
     border:1px solid var(--line); border-radius:10px; overflow-x:auto; overflow-y:hidden; margin-top:8px;
   }
-  .linetable{ width:100%; min-width:900px; border-collapse:collapse; font-size:12.5px; table-layout:fixed; }
-  .linetable.hide-grn{ min-width:842px; }
-  .linetable col.c-drag{ width:22px; } .linetable col.c-desc{ width:auto; } .linetable col.c-qty{ width:52px; } .linetable col.c-grn{ width:58px; } .linetable col.c-size{ width:64px; } .linetable col.c-price{ width:76px; } .linetable col.c-popr{ width:70px; } .linetable col.c-disc{ width:50px; } .linetable col.c-gst{ width:50px; } .linetable col.c-amt{ width:78px; } .linetable col.c-match{ width:118px; } .linetable col.c-del{ width:22px; }
+  .linetable{ width:100%; min-width:932px; border-collapse:collapse; font-size:12.5px; table-layout:fixed; }
+  /* A line failing both price and qty checks gets a compound pill ("6.2% vs
+     PO · Qty +10 vs GRN") that's too long to force onto one line at 150px —
+     let it wrap in place rather than widening every row's Match column. */
+  .linetable .status{ white-space:normal; text-align:left; line-height:1.35; }
+  .linetable.hide-grn{ min-width:874px; }
+  .linetable col.c-drag{ width:22px; } .linetable col.c-desc{ width:auto; } .linetable col.c-qty{ width:52px; } .linetable col.c-grn{ width:58px; } .linetable col.c-size{ width:64px; } .linetable col.c-price{ width:76px; } .linetable col.c-popr{ width:70px; } .linetable col.c-disc{ width:50px; } .linetable col.c-gst{ width:50px; } .linetable col.c-amt{ width:78px; } .linetable col.c-match{ width:150px; } .linetable col.c-del{ width:22px; }
   /* 2-way matching drops the goods-receipt leg entirely, so the GRN column
      has nothing to say — collapse it rather than showing a column of dashes. */
   .linetable.hide-grn col.c-grn{ width:0; }
