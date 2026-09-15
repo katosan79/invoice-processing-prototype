@@ -97,6 +97,26 @@
         {name:'Cinnamon Scrolls 4-pack',uom:'pkg',invPrice:6.50,qty:10,grn:null,unmapped:true},
       ],
       capturedLines:[{name:'Sourdough Loaf (each)',qty:20,invPrice:5.50},{name:'Croissant 6-pack',qty:5,invPrice:9.00},{name:'Cinnamon Scrolls 4-pack',qty:10,invPrice:6.50}] },
+    /* ── dual-exception lines: a single line can fail price AND quantity at
+       once (invPrice above poPrice, and grn short of the invoiced qty) —
+       computeOutcome() still reports the invoice-level reasonTag as 'Price'
+       (checked first), but the per-line Match pill on the detail screen
+       combines both, and the GRN qty / PO price reference columns each
+       tint independently regardless of which one the pill leads with. ── */
+    { id:'INV-00908', grnRef:'GRN-3413', po:'PO-5533', poDate:'16 June 2026', supplier:'Harbour Meats', outlet:'Parramatta Table', date:'16 June, 14:20', source:'upload', amount:532.0, status:'risk', by:'Waihong Chee',
+      why:'Chicken Breast is +8.3% vs PO ($8.40 → $9.10) and short-received (30 of 40 invoiced) — two separate exceptions on the same line.', reasonTag:'Price',
+      lines:[
+        {name:'Chicken Breast 500g',sku:'HM-CHKB-500',uom:'kg',poPrice:8.40,invPrice:9.10,qty:40,grn:30},
+        {name:'Lamb Rack (each)',sku:'HM-LMR-EA',uom:'ea',poPrice:28.00,invPrice:28.00,qty:6,grn:6},
+      ] },
+    { id:'INV-00909', grnRef:'GRN-3414', po:'PO-5534', poDate:'16 June 2026', supplier:'Green Farmers Market', outlet:'Newtown', date:'16 June, 15:05', source:'email', amount:754.5, status:'risk', by:'Idayu',
+      why:'Avocado is +14.6% vs PO and short-received (45 of 60); Baby Spinach is +12.5% vs PO; Roma Tomatoes is short-received (10 of 15) — multiple exceptions across this invoice.', reasonTag:'Price',
+      lines:[
+        {name:'Mixed Leaf 2kg',sku:'GFM-MXL-2KG',uom:'bag',poPrice:9.00,invPrice:9.00,qty:20,grn:20},
+        {name:'Avocado (each)',sku:'GFM-AVO-EA',uom:'ea',poPrice:2.40,invPrice:2.75,qty:60,grn:45},
+        {name:'Roma Tomatoes 5kg',sku:'GFM-TOM-5KG',uom:'box',poPrice:16.50,invPrice:16.50,qty:15,grn:10},
+        {name:'Baby Spinach 1kg',sku:'GFM-SPN-1KG',uom:'bag',poPrice:12.00,invPrice:13.50,qty:12,grn:12},
+      ] },
   ];
 
   /* ── PO catalog — stands in for a real PO lookup service. Every open PO a
