@@ -157,12 +157,16 @@
        to do and unrelated to the PO-5526 split above — this invoice's
        lines are each within their own PO's ordered quantity; its one
        exception is an ordinary price variance on the PO-5528 side. ── */
-    { id:'INV-00913', po:'PO-5512', poDate:'12 June 2026', extraPOs:[{po:'PO-5528',poDate:'14 June 2026'}], grnRef:'GRN-3415', supplier:'Harbour Meats', outlet:'Newtown', date:'16 June, 18:05', source:'email', amount:660.11, status:'risk', by:'Keith Tan',
-      why:'Bacon Rashers is +6.9% vs PO-5528 ($14.50 → $15.50) — the rest of this consolidated invoice (PO-5512, and the rest of PO-5528) matches cleanly.', reasonTag:'Price',
+    { id:'INV-00913', po:'PO-5512', poDate:'12 June 2026', extraPOs:[{po:'PO-5528',poDate:'14 June 2026'}], grnRef:'GRN-3415', supplier:'Harbour Meats', outlet:'Newtown', date:'16 June, 18:05', source:'email', amount:705.21, status:'risk', by:'Keith Tan',
+      why:'Bacon Rashers is +6.9% vs PO-5528 ($14.50 → $15.50) — the rest of this consolidated invoice (PO-5512, and the rest of PO-5528) matches cleanly. Chicken Wings 1kg was ordered on both POs and is billed against each separately.', reasonTag:'Price',
       lines:[
         {name:'Chicken Wings 1kg',po:'PO-5512',sku:'HM-CHW-1KG',uom:'kg',poPrice:8.20,invPrice:8.20,qty:18,grn:18},
         {name:'Beef Brisket 2kg',po:'PO-5528',sku:'HM-BRI-2KG',uom:'kg',poPrice:22.00,invPrice:22.00,qty:10,grn:10},
         {name:'Bacon Rashers 1kg',po:'PO-5528',sku:'HM-BAC-1KG',uom:'kg',poPrice:14.50,invPrice:15.50,qty:15,grn:15},
+        // Same item as the PO-5512 line above, but a separate order line
+        // against PO-5528 — the "Also on PO-..." note (app.js openDetail())
+        // is what keeps this from reading as an accidental duplicate row.
+        {name:'Chicken Wings 1kg',po:'PO-5528',sku:'HM-CHW-1KG',uom:'kg',poPrice:8.20,invPrice:8.20,qty:5,grn:5},
       ] },
   ];
 
@@ -195,8 +199,11 @@
     // A second open PO for a supplier that already has one (PO-5512) — lets
     // the type-ahead offer more than one PO for the same supplier, and is
     // what INV-00913 consolidates alongside PO-5512.
-    { po:'PO-5528', supplier:'Harbour Meats', poDate:'14 June 2026', amount:437.50, lines:[
+    { po:'PO-5528', supplier:'Harbour Meats', poDate:'14 June 2026', amount:502.10, lines:[
         {name:'Beef Brisket 2kg', sku:'HM-BRI-2KG', uom:'kg', poPrice:22.00, qty:10, grn:10},
         {name:'Bacon Rashers 1kg', sku:'HM-BAC-1KG', uom:'kg', poPrice:14.50, qty:15, grn:15},
+        // Same item as PO-5512's Chicken Wings line — a separate order for
+        // the same SKU, not the same line split in two.
+        {name:'Chicken Wings 1kg', sku:'HM-CHW-1KG', uom:'kg', poPrice:8.20, qty:8, grn:8},
       ] },
   ];
