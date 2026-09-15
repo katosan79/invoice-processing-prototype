@@ -1260,7 +1260,13 @@
       const verdicts = portions.map(p => ({ po: linePO(inv, p) || '', ...computeLineVerdict(inv, p) }));
       const anyPriceIssue = verdicts.some(v => !v.priceOk);
       const anyQtyIssue = verdicts.some(v => !v.qtyOk);
-      const statusHtml = `<div class="status-stack">${verdicts.map(v =>
+      // Every portion agreeing (the common case — an item split across two
+      // POs usually just matches on both) shows one plain pill, same as a
+      // solo row — no PO labels needed when there's nothing to tell apart.
+      // Labels only earn their keep once portions actually disagree, which
+      // is exactly when knowing WHICH PO has the problem matters.
+      const allAgree = verdicts.every(v => v.statusHtml === verdicts[0].statusHtml);
+      const statusHtml = allAgree ? verdicts[0].statusHtml : `<div class="status-stack">${verdicts.map(v =>
         `<div class="li-po-verdict"><span class="li-po-verdict-tag">${v.po}</span>${v.statusHtml}</div>`
       ).join('')}</div>`;
       const breakdown = portions.map(p => `${p.qty} via ${linePO(inv, p) || '—'}`).join(' · ');
