@@ -782,6 +782,21 @@
   // is open (see openDetail()) and restored by showTab(), which is the
   // only way back to a list view (including the detail screen's own Back
   // button — see BACK_LABELS/backBtn.onclick below).
+  /* ── mobile nav drawer ── */
+  // The sidebar is a normal sticky column above the 860px breakpoint (the
+  // media query never applies there), so these only ever get invoked via
+  // the hamburger button that CSS also hides above that width.
+  function toggleSidebar(){
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar-backdrop').classList.toggle('show');
+  }
+  function closeSidebar(){
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-backdrop').classList.remove('show');
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeSidebar();
+  });
   function setQueueChromeVisible(visible){
     document.getElementById('statrow-wrap').style.display = visible ? '' : 'none';
     document.getElementById('tabsrow').style.display = visible ? '' : 'none';

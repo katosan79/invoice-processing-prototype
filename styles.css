@@ -52,8 +52,16 @@
   .proto-note{ margin-top:auto; background:#2A332E; border:1px solid #445048; border-radius:10px; padding:12px; font-size:11.5px; line-height:1.5; color:#AEB8B1; }
   .proto-note b{ color:#fff; }
 
+  /* Off-canvas by default; only the mobile breakpoint below ever shows it —
+     desktop never sees a backdrop or a hamburger. */
+  .sidebar-backdrop{ display:none; position:fixed; inset:0; background:rgba(14,55,39,.4); z-index:190; opacity:0; pointer-events:none; transition:opacity .2s ease; }
+  .sidebar-backdrop.show{ opacity:1; pointer-events:auto; }
+  .hamburger-btn{ display:none; background:none; border:1px solid var(--line); color:var(--text); width:36px; height:36px; border-radius:8px; font-size:17px; cursor:pointer; align-items:center; justify-content:center; flex:none; }
+  .hamburger-btn:hover{ background:var(--surface-soft); }
+
   main{ min-width:0; }
   .topbar{ display:flex; align-items:center; justify-content:space-between; padding:18px 28px 0 28px; gap:16px; flex-wrap:wrap; }
+  .topbar-title{ display:flex; align-items:center; gap:12px; }
   .topbar h1{ font-size:26px; font-weight:700; }
   .topbar .actions{ display:flex; gap:10px; align-items:center; }
   .topbar-queue-actions{ display:flex; gap:10px; align-items:center; }
@@ -477,3 +485,51 @@
 
   .footnote{ display:flex; gap:9px; font-size:12.5px; color:var(--text-soft); line-height:1.5; margin-top:20px; }
   .footnote .dot{ width:16px;height:16px;border-radius:50%;background:var(--mint);color:var(--spinach);display:grid;place-items:center;font-size:10px;flex:none;margin-top:1px; }
+
+  /* ── mobile (≤860px) — scoped to the Invoices flow this prototype
+     actually builds out. The fixed 220px sidebar never had a breakpoint at
+     all before this: below ~860px it ate roughly half a phone screen and
+     squeezed everything else into an unreadable, horizontally-scrolling
+     sliver. Sidebar nav items past "Invoices" are decorative placeholders
+     (see CLAUDE.md Non-goals) so a hamburger + slide-out drawer is enough —
+     no need for a persistent icon rail or bottom tab bar in a single-page
+     prototype. ── */
+  @media (max-width: 860px) {
+    .shell{ grid-template-columns: 1fr; }
+    .sidebar{
+      position: fixed; top: 0; left: 0; bottom: 0; width: 260px; max-width: 82vw;
+      z-index: 200; transform: translateX(-100%);
+      transition: transform .25s cubic-bezier(0.215, 0.61, 0.355, 1);
+      box-shadow: 12px 0 32px rgba(0,0,0,.25);
+    }
+    .sidebar.open{ transform: translateX(0); }
+    .sidebar-backdrop{ display: block; }
+    .hamburger-btn{ display: inline-flex; }
+
+    .topbar{ padding: 16px 16px 0; }
+    /* .topbar itself already wraps its two children (.topbar-title,
+       .actions) onto separate lines, but .actions is its own flex row of
+       three buttons + the help/user text with no wrap of its own — that
+       combined row was wider than any phone, forcing the whole page to
+       scroll horizontally rather than just this one row reflowing. */
+    .actions{ flex-wrap: wrap; row-gap: 8px; }
+    .topbar-queue-actions{ flex-wrap: wrap; row-gap: 8px; }
+    .statrow{ padding: 0 16px; }
+    .tabs{ padding: 18px 16px 0; gap: 18px; }
+    .view{ padding: 16px 16px 60px; }
+
+    /* Invoice detail: form + source-document preview stack instead of
+       sitting side by side — at phone width 1.55fr/1fr left ~120px for
+       the form, which is unusable. */
+    .detailgrid{ grid-template-columns: 1fr; }
+    .detailform{ border-right: none; border-bottom: 1px solid var(--line); }
+    .fieldrow{ grid-template-columns: 1fr; gap: 14px; }
+
+    /* Modals: every one of these sets its own inline pixel width (380–
+       460px, wider than a phone). max-width is a different property, so
+       this caps whichever one is open without touching or !important-ing
+       over each inline style — the inline width just gets clamped down
+       to fit, with a 16px gutter on either side. */
+    .modal-bg{ padding: 16px; }
+    .modal{ max-width: calc(100vw - 32px); }
+  }
