@@ -383,6 +383,18 @@
      not something to edit, so it's visually quieter than a real line */
   .li-row-missing td{ background:var(--surface-soft); color:var(--text-soft); }
   .li-missing-name{ font-style:italic; color:var(--text-soft); text-decoration:line-through; }
+  /* Group-header row separating one consolidated PO's lines from the next —
+     a divider, not a data row, so it reads distinctly from the lines
+     underneath it even though it lives in the same tbody.
+     The flex layout lives on an inner div, not the <td> itself — a colspan
+     cell with display:flex stops sizing itself off the spanned columns in
+     a table-layout:fixed table (it collapsed to the first column's width
+     here), so the <td> stays a normal table-cell and only its content
+     wraps in flex. */
+  .li-po-group td{ background:var(--surface-soft); padding:8px 8px; border-bottom:1px solid var(--line); }
+  .li-po-group-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .po-group-label{ font-weight:700; font-size:11.5px; color:var(--text); display:inline-flex; align-items:center; gap:5px; }
+  .po-group-sum{ font-size:11px; color:var(--text-soft); }
   .li-amt{ text-align:right; font-weight:700; white-space:nowrap; }
   .linetable-actions{ display:flex; gap:18px; flex-wrap:wrap; padding:10px 12px; background:var(--surface-soft); }
   .linetable-actions button{ background:none; border:none; color:var(--fern); font-weight:700; font-size:12.5px; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; gap:5px; }

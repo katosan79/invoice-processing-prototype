@@ -136,6 +136,34 @@
         {name:'Cherry Tomatoes 250g',sku:'FPC-CHT-250',uom:'punnet',invPrice:3.50,qty:15},
         {name:'Heirloom Carrot Bunch',uom:'bunch',invPrice:4.80,qty:8,unmapped:true},
       ] },
+    /* ── one PO, split across two invoices — PO-5526 ordered 60 Cherry
+       Tomatoes 250g in total; these two invoices bill 35 and 30 against
+       it (65 combined). Neither invoice looks wrong on its own — the
+       problem only exists in the two of them added together, which is
+       exactly what poQtyExceeded() (app.js) is checking for. ── */
+    { id:'INV-00911', po:'PO-5526', poDate:'11 June 2026', supplier:'Fresh Produce Co', outlet:'Surry Hills', date:'16 June, 17:10', source:'email', amount:134.75, status:'risk', by:'Waihong Chee',
+      why:'PO-5526 ordered 60 Cherry Tomatoes 250g in total — this invoice and INV-00912 together now bill 65, 5 over what was ordered.', reasonTag:'PO exceeded',
+      lines:[
+        {name:'Cherry Tomatoes 250g',sku:'FPC-CHT-250',uom:'punnet',poPrice:3.50,invPrice:3.50,qty:35,grn:35},
+      ] },
+    { id:'INV-00912', po:'PO-5526', poDate:'11 June 2026', supplier:'Fresh Produce Co', outlet:'Surry Hills', date:'16 June, 17:40', source:'email', amount:115.50, status:'risk', by:'Waihong Chee',
+      why:'PO-5526 ordered 60 Cherry Tomatoes 250g in total — this invoice and INV-00911 together now bill 65, 5 over what was ordered.', reasonTag:'PO exceeded',
+      lines:[
+        {name:'Cherry Tomatoes 250g',sku:'FPC-CHT-250',uom:'punnet',poPrice:3.50,invPrice:3.50,qty:30,grn:30},
+      ] },
+    /* ── the other direction — one invoice consolidating two POs. Harbour
+       Meats batched a second week's order (PO-5528) onto the same invoice
+       as the tail end of PO-5512, which is a normal thing for a supplier
+       to do and unrelated to the PO-5526 split above — this invoice's
+       lines are each within their own PO's ordered quantity; its one
+       exception is an ordinary price variance on the PO-5528 side. ── */
+    { id:'INV-00913', po:'PO-5512', poDate:'12 June 2026', extraPOs:[{po:'PO-5528',poDate:'14 June 2026'}], grnRef:'GRN-3415', supplier:'Harbour Meats', outlet:'Newtown', date:'16 June, 18:05', source:'email', amount:660.11, status:'risk', by:'Keith Tan',
+      why:'Bacon Rashers is +6.9% vs PO-5528 ($14.50 → $15.50) — the rest of this consolidated invoice (PO-5512, and the rest of PO-5528) matches cleanly.', reasonTag:'Price',
+      lines:[
+        {name:'Chicken Wings 1kg',po:'PO-5512',sku:'HM-CHW-1KG',uom:'kg',poPrice:8.20,invPrice:8.20,qty:18,grn:18},
+        {name:'Beef Brisket 2kg',po:'PO-5528',sku:'HM-BRI-2KG',uom:'kg',poPrice:22.00,invPrice:22.00,qty:10,grn:10},
+        {name:'Bacon Rashers 1kg',po:'PO-5528',sku:'HM-BAC-1KG',uom:'kg',poPrice:14.50,invPrice:15.50,qty:15,grn:15},
+      ] },
   ];
 
   /* ── PO catalog — stands in for a real PO lookup service. Every open PO a
@@ -163,5 +191,12 @@
       ] },
     { po:'PO-5527', supplier:'Sydney Butchers Co.', poDate:'8 June 2026', amount:180, lines:[
         {name:'Chicken Breast 500g', sku:'SBC-CHKB-500', uom:'pkg', poPrice:7.15, qty:25, grn:25},
+      ] },
+    // A second open PO for a supplier that already has one (PO-5512) — lets
+    // the type-ahead offer more than one PO for the same supplier, and is
+    // what INV-00913 consolidates alongside PO-5512.
+    { po:'PO-5528', supplier:'Harbour Meats', poDate:'14 June 2026', amount:437.50, lines:[
+        {name:'Beef Brisket 2kg', sku:'HM-BRI-2KG', uom:'kg', poPrice:22.00, qty:10, grn:10},
+        {name:'Bacon Rashers 1kg', sku:'HM-BAC-1KG', uom:'kg', poPrice:14.50, qty:15, grn:15},
       ] },
   ];

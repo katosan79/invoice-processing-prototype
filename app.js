@@ -272,6 +272,13 @@
     if (hasExtra && hasMissing) return { status:'risk', reasonTag:'Items differ from PO' };
     if (hasMissing) return { status:'warn', reasonTag:'Items missing' };
     if (hasExtra) return { status:'warn', reasonTag:'Extra items' };
+    // A PO can legitimately be split across several invoices — but checked
+    // here, before the price/qty gates below, because it's a cross-invoice
+    // concern (this invoice's share plus everyone else's), not a per-line
+    // comparison against this invoice alone. Only fires for POs open enough
+    // to check against (see poQtyExceeded()) — most already-matched seed
+    // invoices have nothing here to compare and this quietly no-ops.
+    if (poQtyExceeded(inv)) return { status:'risk', reasonTag:'PO exceeded' };
     const total = inv.lines.length, received = inv.lines.filter(l=>l.grn!==null).length;
     // 2-way match never waits on goods receipt — treat it as satisfied so
     // matching proceeds on price alone.
@@ -342,6 +349,9 @@
       { label:'Not a duplicate',         state: !legible ? 'na' : (inv.duplicateOf ? 'fail' : 'pass') },
       { label:'PO matched',              state: poState },
       { label:'Items match PO',          state: matchGated ? 'na' : (itemsMismatch ? 'fail' : 'pass') },
+      // Same gating as computeOutcome() — a composition mismatch makes this
+      // moot too, and it's checked before GRN/price/qty for the same reason.
+      { label:'Within ordered PO quantity', state: downstreamGated ? 'na' : (poQtyExceeded(inv) ? 'fail' : 'pass') },
       // Goods-receipt and quantity-vs-GRN aren't part of 2-way match at
       // all — the policy removes that leg entirely, so the checkpoints
       // drop out of the list rather than showing as "n/a"/"not required".
@@ -366,6 +376,7 @@
       if (inv.reasonTag === 'Total mismatch') return "Total doesn't reconcile";
       if (inv.reasonTag === 'Unmapped item') return 'Item not in market list';
       if (inv.reasonTag === 'Items differ from PO') return 'Items differ from PO';
+      if (inv.reasonTag === 'PO exceeded') return 'Exceeds PO quantity across invoices';
       return 'Price above PO';
     }
     if (inv.status==='warn') {
@@ -684,11 +695,23 @@
   // Financial-variance reasons have a $ amount worth surfacing; item-set
   // composition issues (extra/missing/unmapped) don't map to an overbilled
   // figure the same way, so they're excluded from the "caught" total.
-  const FINANCIAL_REASON_TAGS = ['Price', 'Quantity', 'Total mismatch'];
+  const FINANCIAL_REASON_TAGS = ['Price', 'Quantity', 'Total mismatch', 'PO exceeded'];
   function exceptionCaughtAmount(inv){
     if (inv.reasonTag === 'Price') return inv.lines.reduce((s,l)=> s + Math.max(0,(l.invPrice-l.poPrice))*(l.qty||0), 0);
     if (inv.reasonTag === 'Quantity') return inv.lines.reduce((s,l)=> s + Math.max(0,(l.qty-(l.grn||0)))*(l.invPrice||0), 0);
     if (inv.reasonTag === 'Total mismatch') return Math.abs(inv.amount - reconciledTotal(inv));
+    // Dollar value of the overshoot — this invoice's rate applied to
+    // however much the PO's cumulative total (across every invoice
+    // against it) runs past what was actually ordered. Not a precise
+    // attribution of which invoice is "at fault" when a PO is split
+    // across several — just the size of the number worth a person's look.
+    if (inv.reasonTag === 'PO exceeded') return inv.lines.reduce((s,l) => {
+      if (l.missing || l.extra || l.unmapped || !l.sku) return s;
+      const po = linePO(inv, l);
+      const ordered = po && poOrderedQty(po, l.sku);
+      if (!po || ordered === null) return s;
+      return s + Math.max(0, poCumulativeInvoicedQty(po, l.sku) - ordered) * (l.invPrice||0);
+    }, 0);
     return 0;
   }
   function computeStats(){
@@ -978,7 +1001,7 @@
         <div><span>Invoice No.</span><b>${(inv.rawReference || inv.id).replace('INV-','#')}</b></div>
         <div><span>Invoice Date</span><b>${invDate ? fmtShortDate(invDate) : inv.date}</b></div>
         <div><span>Delivery Date</span><b>${deliveryDate}</b></div>
-        <div><span>PO Reference</span><b>${inv.po || '—'}</b></div>
+        <div><span>PO Reference${invPOList(inv).length>1?'s':''}</span><b>${invPOList(inv).map(p=>p.po).join(', ') || '—'}</b></div>
         <div><span>Delivery Order</span><b>${deliveryOrder}</b></div>
         <div><span>Payment Terms</span><b>Net 30 Days</b></div>
         <div><span>Due Date</span><b>${dueDate}</b></div>
@@ -1010,6 +1033,40 @@
     `;
   }
   /* ── 3-way match summary (PO ↔ GRN ↔ Invoice) ── */
+  // A compact per-PO version of build3WayMatch()'s tally, for the group
+  // header row when an invoice consolidates more than one PO — each group
+  // gets its own read of how it's doing, since one PO on a consolidated
+  // invoice can be clean while another has an exception.
+  function poGroupSummary(lines){
+    const twoWay = MATCH_MODE === '2way';
+    let matched=0, priceIssues=0, qtyIssues=0, awaitingGrn=0, extra=0, missing=0, unmapped=0;
+    lines.forEach(l=>{
+      if (l.missing) { missing++; return; }
+      if (l.unmapped) { unmapped++; return; }
+      if (l.extra) { extra++; return; }
+      const priceOk = withinPriceTolerance(l);
+      if (twoWay) { if (!priceOk) priceIssues++; else matched++; return; }
+      const qtyOk = l.grn===null || withinQtyTolerance(l);
+      if (l.grn===null) awaitingGrn++;
+      else if (!priceOk) priceIssues++;
+      else if (!qtyOk) qtyIssues++;
+      else matched++;
+    });
+    const total = lines.length;
+    const compParts = [];
+    if (unmapped) compParts.push(`${unmapped} not in market list`);
+    if (missing) compParts.push(`${missing} missing`);
+    if (extra) compParts.push(`${extra} not on this PO`);
+    if (compParts.length) return compParts.join(' · ');
+    if (!twoWay && awaitingGrn === total) return `Awaiting GRN on all ${total} line${total>1?'s':''}`;
+    if (priceIssues || qtyIssues) {
+      const parts = [];
+      if (priceIssues) parts.push(`${priceIssues} price exception${priceIssues>1?'s':''}`);
+      if (qtyIssues) parts.push(`${qtyIssues} quantity exception${qtyIssues>1?'s':''}`);
+      return `${matched} of ${total} match · ${parts.join(' · ')}`;
+    }
+    return `All ${total} line${total>1?'s':''} match`;
+  }
   function build3WayMatch(inv){
     if (MATCH_MODE === 'none') {
       if (inv.legible === false) return '';
@@ -1057,6 +1114,15 @@
       summary = `${matched} of ${total} lines match · ${parts.join(' · ')}`;
       cls = 'status-risk';
     } else { summary = `All ${total} line${total>1?'s':''} match PO${twoWay ? '' : ' and GRN'}`; cls = 'status-ok'; }
+    // Checked last here (composition issues still take priority for the
+    // summary text, same as computeOutcome()'s order), but it's what's
+    // actually driving the invoice's status when it fires — without this,
+    // an invoice flagged "Exceeds PO quantity" would show a band saying
+    // "All lines match", which is true and also exactly the problem.
+    if (!compParts.length && poQtyExceeded(inv)) {
+      summary = `${summary} — but combined with other invoices against the same PO, exceeds what was ordered`;
+      cls = 'status-risk';
+    }
     const label = twoWay ? '2-way match' : '3-way match';
     const legs = twoWay ? 'PO ↔ Invoice' : 'PO ↔ GRN ↔ Invoice';
     return `<div class="matchbar"><span class="status ${cls}"><span class="dot"></span>${label}</span><span class="matchbar-sum">${legs} — ${summary}</span></div>`;
@@ -1129,7 +1195,7 @@
     // same source computeOutcome()/runChecks() already check for unmapped
     // items in this mode.
     const displayLines = MATCH_MODE === 'none' && !inv.lines.length ? (inv.capturedLines || []) : inv.lines;
-    document.getElementById('d-lines').innerHTML = displayLines.length ? displayLines.map((l, idx) => {
+    const lineRows = displayLines.map((l, idx) => ({ po: linePO(inv, l), line: l, html: (() => {
       if (MATCH_MODE === 'none') {
         // Read-only, not editable like the 3-way/2-way rows below: when the
         // row is sourced from capturedLines (no PO ever linked), there's no
@@ -1177,7 +1243,7 @@
       const priceOk = (l.extra || l.unmapped) ? true : withinPriceTolerance(l);
       let statusHtml;
       if (l.unmapped) { statusHtml = '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'; }
-      else if (l.extra) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Not on ${inv.po}</span>`; }
+      else if (l.extra) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Not on ${linePO(inv,l) || inv.po}</span>`; }
       else if (!twoWay && l.grn===null) { statusHtml = '<span class="status status-info"><span class="dot"></span>Awaiting GRN</span>'; }
       else if (!priceOk && !qtyOk) {
         // A line can fail both checks at once — show one pill per issue
@@ -1190,6 +1256,17 @@
       else if (!priceOk) { statusHtml = `<span class="status status-risk"><span class="dot"></span>${(((l.invPrice-l.poPrice)/l.poPrice)*100).toFixed(1)}% vs PO</span>`; }
       else if (!qtyOk) { statusHtml = `<span class="status status-warn"><span class="dot"></span>Qty ${l.qty>l.grn?'+':''}${l.qty-l.grn} vs GRN</span>`; }
       else { statusHtml = '<span class="status status-ok"><span class="dot"></span>Matches PO</span>'; }
+      // A line can be clean on price and GRN qty and still be part of why
+      // the PO itself is over-billed once every invoice against it is
+      // added up — that's a different relationship (cumulative vs this
+      // invoice's own GRN), so it's stacked as an extra pill rather than
+      // replacing whatever the checks above already decided.
+      if (!l.missing && !l.extra && !l.unmapped && lineExceedsPO(inv, l)) {
+        const exceedPill = '<span class="status status-risk"><span class="dot"></span>Exceeds PO qty (cumulative)</span>';
+        statusHtml = statusHtml.startsWith('<div class="status-stack">')
+          ? statusHtml.replace('</div>', exceedPill + '</div>')
+          : `<div class="status-stack">${statusHtml}${exceedPill}</div>`;
+      }
       // Reference cells: the GRN's received qty and the PO's agreed price, sat
       // beside the invoiced figures so the variance is readable inline rather
       // than only in the Match pill. An extra/unmapped line has neither.
@@ -1211,7 +1288,34 @@
         <td>${statusHtml}</td>
         <td class="rowdel" onclick="toast('Line removed')">✕</td>
       </tr>`;
-    }).join('') : `<tr><td colspan="12" style="text-align:center;color:var(--text-soft);font-style:italic;padding:14px 0;">${inv.legible === false ? 'No line items — the document could not be read' : MATCH_MODE === 'none' ? 'No line items were captured on this document' : 'No PO linked yet — line items unavailable until this is matched'}</td></tr>`;
+    })() }));
+    const poList = invPOList(inv);
+    let linesHtml;
+    if (!lineRows.length) {
+      linesHtml = `<tr><td colspan="12" style="text-align:center;color:var(--text-soft);font-style:italic;padding:14px 0;">${inv.legible === false ? 'No line items — the document could not be read' : MATCH_MODE === 'none' ? 'No line items were captured on this document' : 'No PO linked yet — line items unavailable until this is matched'}</td></tr>`;
+    } else if (MATCH_MODE !== 'none' && poList.length > 1) {
+      // Consolidated invoice: cluster lines under the PO they belong to,
+      // each with its own subtotal and match summary — a supplier's
+      // invoice that bundles several POs reads as several small matches,
+      // not one table that silently averages them together. Lines with no
+      // resolvable PO (shouldn't happen once every line on a multi-PO
+      // invoice carries its own `po`, but nothing here assumes that) fall
+      // into a trailing "Other" group rather than being dropped.
+      const byPO = new Map(poList.map(p => [p.po, []]));
+      const other = [];
+      lineRows.forEach(r => (byPO.has(r.po) ? byPO.get(r.po) : other).push(r));
+      const groupHtml = (poCode, poDate, rows) => {
+        if (!rows.length) return '';
+        const summary = poGroupSummary(rows.map(r => r.line));
+        return `<tr class="li-po-group"><td colspan="12"><div class="li-po-group-row"><span class="po-group-label"><i class="ti ti-file-invoice"></i> ${poCode}${poDate ? ' · '+poDate : ''}</span><span class="po-group-sum">${rows.length} line${rows.length>1?'s':''} · ${summary}</span></div></td></tr>`
+          + rows.map(r => r.html).join('');
+      };
+      linesHtml = poList.map(p => groupHtml(p.po, p.poDate, byPO.get(p.po) || [])).join('')
+        + groupHtml('Other', '', other);
+    } else {
+      linesHtml = lineRows.map(r => r.html).join('');
+    }
+    document.getElementById('d-lines').innerHTML = linesHtml;
 
     const marginCard = document.getElementById('d-margincard');
     if (inv.margin) {
@@ -1479,12 +1583,87 @@
   function exportInvoice(id){ transitionInvoice(id, 'exported', `Exported to ${ACCOUNTING_SYSTEM}`, {exportedTo: ACCOUNTING_SYSTEM}); }
   function discardInvoice(id){ removeInvoice(id, 'Discarded'); }
   function rejectUpload(id){ removeInvoice(id, 'Upload rejected'); }
-  // open = not already attached to a different invoice, and (when the invoice's
-  // supplier is known) belonging to that same supplier — the two things that
-  // make a PO a *plausible* pick, before a person even starts typing.
+  /* ── multiple POs per invoice, one PO across multiple invoices ──────────
+     inv.po/inv.poDate stay the primary (first-linked) PO — every existing
+     invoice and every gate that only cares "is there a PO at all" (the
+     !inv.po checks throughout this file) keeps working unchanged.
+     inv.extraPOs (optional array of {po, poDate}) holds any additional POs
+     a supplier's invoice consolidates. invPOList() is the one place that
+     knows how to read both, so nothing else has to. ── */
+  function invPOList(inv){
+    const list = [];
+    if (inv.po) list.push({ po: inv.po, poDate: inv.poDate });
+    if (inv.extraPOs) list.push(...inv.extraPOs);
+    return list;
+  }
+  // Which PO a given line belongs to: explicit on the line when an invoice
+  // spans more than one PO (there's no other way to know), or just the
+  // invoice's one PO when there's only one to infer.
+  function linePO(inv, l){
+    if (l.po) return l.po;
+    const list = invPOList(inv);
+    return list.length === 1 ? list[0].po : null;
+  }
+  // Other invoices that also reference this PO — the "vice versa" direction:
+  // a PO split across several invoices, not just one invoice spanning
+  // several POs. Used both to surface "also billed on INV-X" and to total
+  // up cross-invoice quantity below.
+  function invoicesForPO(poCode, excludeId){
+    return INV.filter(i => i.id !== excludeId && invPOList(i).some(p => p.po === poCode));
+  }
+  // How much of a PO_CATALOG line's ordered qty has been invoiced so far,
+  // summed across every invoice that references this PO — not just one.
+  // This is what lets a PO be legitimately split across several invoices
+  // while still catching the case where the pieces add up to more than
+  // what was actually ordered. `missing`/`extra`/`unmapped` lines are
+  // excluded — they were never really invoiced against this PO's own
+  // ordered quantity in the first place.
+  function poCumulativeInvoicedQty(poCode, sku){
+    let total = 0;
+    INV.forEach(inv => {
+      (inv.lines || []).forEach(l => {
+        if (l.missing || l.extra || l.unmapped || !l.sku) return;
+        if (l.sku === sku && linePO(inv, l) === poCode) total += l.qty;
+      });
+    });
+    return total;
+  }
+  function poOrderedQty(poCode, sku){
+    const po = findPO(poCode);
+    const line = po && po.lines.find(l => l.sku === sku);
+    return line ? line.qty : null;
+  }
+  // True when this invoice's own share of a PO, combined with whatever
+  // else has already been billed against that same PO elsewhere, adds up
+  // to more than the PO actually ordered. Only meaningful for POs open
+  // enough to check against — PO_CATALOG only lists the ones available
+  // for linking; a PO already fully consumed off-catalog (most of the
+  // seeded matched invoices) has nothing here to compare against, so this
+  // quietly has nothing to say rather than guessing.
+  function poQtyExceeded(inv){
+    return (inv.lines || []).some(l => lineExceedsPO(inv, l));
+  }
+  // Per-line version of the same check, for the line's own Match pill —
+  // poQtyExceeded() (above) is just "does any line trigger this".
+  function lineExceedsPO(inv, l){
+    if (l.missing || l.extra || l.unmapped || !l.sku) return false;
+    const po = linePO(inv, l);
+    if (!po) return false;
+    const ordered = poOrderedQty(po, l.sku);
+    return ordered !== null && poCumulativeInvoicedQty(po, l.sku) > ordered;
+  }
+  // open = (when the invoice's supplier is known) belonging to that same
+  // supplier — the one thing that makes a PO a *plausible* pick, before a
+  // person even starts typing. A PO already linked elsewhere is still a
+  // candidate — a PO can legitimately be split across several invoices —
+  // poSharedNote() below is what surfaces that context instead of hiding it.
   function poCandidatesFor(inv){
-    const used = new Set(INV.filter(i => i.id !== inv.id && i.po).map(i => i.po));
-    return PO_CATALOG.filter(p => !used.has(p.po) && (!inv.supplier || p.supplier === inv.supplier));
+    return PO_CATALOG.filter(p => !inv.supplier || p.supplier === inv.supplier);
+  }
+  function poSharedNote(poCode, excludeId){
+    const others = invoicesForPO(poCode, excludeId);
+    if (!others.length) return '';
+    return `Also on ${others.map(i => i.id).join(', ')}`;
   }
   function findPO(code){ return PO_CATALOG.find(p => p.po.toLowerCase() === (code||'').trim().toLowerCase()); }
 
@@ -1496,7 +1675,10 @@
     const q = input.value.trim().toLowerCase();
     const candidates = poCandidatesFor(inv).filter(p => !q || p.po.toLowerCase().includes(q));
     box.innerHTML = candidates.length
-      ? candidates.map(p => `<div class="po-suggest-item" onmousedown="event.preventDefault();selectPO('${p.po}')"><span class="n">${p.po}</span><span class="d">${p.poDate} · ${fmt(p.amount)}</span></div>`).join('')
+      ? candidates.map(p => {
+          const shared = poSharedNote(p.po, inv.id);
+          return `<div class="po-suggest-item" onmousedown="event.preventDefault();selectPO('${p.po}')"><span class="n">${p.po}</span><span class="d">${p.poDate} · ${fmt(p.amount)}${shared ? ` · ${shared}` : ''}</span></div>`;
+        }).join('')
       : `<div class="po-suggest-empty">No open PO${q ? ` matching "${input.value.trim()}"` : ''} for ${inv.supplier || 'this supplier'}</div>`;
     box.style.display = 'block';
   }
@@ -1523,9 +1705,27 @@
 
   function renderLinkedPO(inv){
     const editable = !['approved','exported'].includes(inv.status);
+    const list = invPOList(inv);
+    // A consolidated invoice (several POs on one bill): every PO gets its
+    // own chip, no amount on the chip (the invoice's one amount isn't any
+    // single PO's), and no Change button — editing which of several isn't
+    // built yet (see app.js top-of-file MATCH_MODE-style comment pattern:
+    // this pass covers the data model and every read path, the multi-add
+    // "Link PO" UI is a follow-up).
+    if (list.length > 1) {
+      const chips = list.map(p => `<span class="pochip"><span class="n">${p.po}</span><span class="d">${p.poDate}</span></span>`).join('');
+      return `<div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${chips}</div>
+        <div style="font-size:11.5px;color:var(--text-soft);">${list.length} purchase orders consolidated on this invoice</div>
+      </div>`;
+    }
+    // The other direction: this one PO might also be on other invoices —
+    // surfaced rather than hidden, since that's now a normal thing to happen.
+    const shared = poSharedNote(inv.po, inv.id);
     return `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span class="pochip"><span class="n">${inv.po}</span><span class="d">${inv.poDate} · ${fmt(inv.amount)}</span></span>
       ${editable ? `<button class="btn-text" style="font-size:12px;" onclick="editPO('${inv.id}')">Change</button>` : ''}
+      ${shared ? `<span style="font-size:11.5px;color:var(--text-soft);">${shared}</span>` : ''}
     </div>`;
   }
   function renderPOInput(inv){
@@ -1574,14 +1774,15 @@
     const input = document.getElementById('po-link-input');
     const raw = (input && input.value.trim()) || '';
 
-    // Validate before anything else runs — only a real, open, same-supplier
-    // PO that isn't already spoken for gets past here.
+    // Validate before anything else runs — only a real, same-supplier PO
+    // gets past here. A PO already linked elsewhere is allowed through: a
+    // PO can legitimately be split across several invoices, and
+    // poQtyExceeded() (checked once the match resolves, not here) is what
+    // catches those invoices adding up to more than the PO ordered.
     if (!raw) { showPOError('Enter or select a PO number'); return; }
     const match = findPO(raw);
     if (!match) { showPOError(`${raw} isn't a recognized PO number — pick one from the list`); return; }
     if (inv.supplier && match.supplier !== inv.supplier) { showPOError(`${match.po} belongs to ${match.supplier}, not ${inv.supplier}`); return; }
-    const clash = INV.find(i => i.id !== inv.id && i.po === match.po);
-    if (clash) { showPOError(`${match.po} is already linked to ${clash.id}`); return; }
     clearPOError();
     hidePOSuggest();
 
@@ -1627,8 +1828,10 @@
       `<strong>${inv.id}</strong> — ${inv.supplier || 'Unknown supplier'}${inv.amount ? ' · ' + fmt(inv.amount) : ''}`;
     const warn = document.getElementById('del-warning');
     if (inv.po) {
+      const list = invPOList(inv);
+      const label = list.length > 1 ? `${list.length} POs (${list.map(p=>p.po).join(', ')})` : inv.po;
       warn.style.display = '';
-      warn.innerHTML = `<i class="ti ti-alert-triangle"></i> Already linked to ${inv.po} — deleting it won't remove that PO, just this invoice.`;
+      warn.innerHTML = `<i class="ti ti-alert-triangle"></i> Already linked to ${label} — deleting it won't remove ${list.length > 1 ? 'those' : 'that'} PO, just this invoice.`;
     } else {
       warn.style.display = 'none';
     }
