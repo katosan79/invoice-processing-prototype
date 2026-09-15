@@ -375,13 +375,14 @@
         <div class="gate"><div class="idx">1</div><div class="q">Is the document legible?<span>A blurry capture is a system problem, not a decision — we ask for a re-shoot rather than sending it to a human to judge.</span></div><div class="route"><span class="pill p-hold"><span class="dot"></span>Hold in Uploads</span></div></div>
         <div class="gate"><div class="idx">2</div><div class="q">Is it a duplicate?<span>Same supplier, invoice number and amount. A quick yes/no for the uploader, not a financial judgement.</span></div><div class="route"><span class="pill p-hold"><span class="dot"></span>Hold in Uploads</span></div></div>
         <div class="gate"><div class="idx">3</div><div class="q">Do we know the supplier?<span>Still fuzzy-matching against known suppliers — nothing for a person to do yet.</span></div><div class="route"><span class="pill p-hold"><span class="dot"></span>Hold in Uploads</span></div></div>
-        <div class="gate"><div class="idx">4</div><div class="q">Is a PO linked?<span>Either we haven't searched yet, or we searched and found nothing — in which case the user links one by hand.</span></div><div class="route"><span class="pill p-hold"><span class="dot"></span>Hold in Uploads</span></div></div>
+        <div class="gate"><div class="idx">4</div><div class="q">Is a PO linked?<span>Either we haven't searched yet, or we searched and found nothing — in which case the user links one by hand. Can be more than one PO (a supplier consolidating several orders onto one invoice) or a PO already linked to another invoice (one PO billed across several) — neither blocks linking.</span></div><div class="route"><span class="pill p-hold"><span class="dot"></span>Hold in Uploads</span></div></div>
         <div class="gate"><div class="idx">5</div><div class="q">Is every item on the market list?<span>An unmapped item has no catalogue price to check against — it has to be mapped or added first.</span></div><div class="route"><span class="pill p-risk"><span class="dot"></span>Exception · Unmapped item</span></div></div>
         <div class="gate"><div class="idx">6</div><div class="q">Does the item set match the PO?<span>Items on the invoice but not the PO (extra), on the PO but never invoiced (missing), or both.</span></div><div class="route"><span class="pill p-warn"><span class="dot"></span>Exception · composition</span></div></div>
-        <div class="gate"><div class="idx">7</div><div class="q">Have the goods been received?<span>3-way match only. Partial receipts show progress — "3 of 6 lines" — rather than a flat wait.</span></div><div class="route"><span class="pill p-hold"><span class="dot"></span>Hold in Uploads</span></div></div>
-        <div class="gate"><div class="idx">8</div><div class="q">Is the price within tolerance?<span>Each line compared to the PO price, against the configured price tolerance.</span></div><div class="route"><span class="pill p-risk"><span class="dot"></span>Exception · Price</span></div></div>
-        <div class="gate"><div class="idx">9</div><div class="q">Is the quantity within tolerance?<span>3-way match only — invoiced quantity against what the goods receipt confirms arrived.</span></div><div class="route"><span class="pill p-warn"><span class="dot"></span>Exception · Quantity</span></div></div>
-        <div class="gate"><div class="idx">10</div><div class="q">Does the invoice total reconcile?<span>Catches totals that don't add up from the lines even when every line individually passes.</span></div><div class="route"><span class="pill p-risk"><span class="dot"></span>Exception · Total mismatch</span></div></div>
+        <div class="gate"><div class="idx">7</div><div class="q">Combined with every other invoice against the same PO, does this stay within what was ordered?<span>A PO split across several invoices is fine on its own — checked here is whether the pieces, added together, run past the PO's own ordered quantity.</span></div><div class="route"><span class="pill p-risk"><span class="dot"></span>Exception · PO exceeded</span></div></div>
+        <div class="gate"><div class="idx">8</div><div class="q">Have the goods been received?<span>3-way match only. Partial receipts show progress — "3 of 6 lines" — rather than a flat wait.</span></div><div class="route"><span class="pill p-hold"><span class="dot"></span>Hold in Uploads</span></div></div>
+        <div class="gate"><div class="idx">9</div><div class="q">Is the price within tolerance?<span>Each line compared to the PO price, against the configured price tolerance.</span></div><div class="route"><span class="pill p-risk"><span class="dot"></span>Exception · Price</span></div></div>
+        <div class="gate"><div class="idx">10</div><div class="q">Is the quantity within tolerance?<span>3-way match only — invoiced quantity against what the goods receipt confirms arrived.</span></div><div class="route"><span class="pill p-warn"><span class="dot"></span>Exception · Quantity</span></div></div>
+        <div class="gate"><div class="idx">11</div><div class="q">Does the invoice total reconcile?<span>Catches totals that don't add up from the lines even when every line individually passes.</span></div><div class="route"><span class="pill p-risk"><span class="dot"></span>Exception · Total mismatch</span></div></div>
         <div class="gate"><div class="idx"><i class="ti ti-check" style="color:var(--fern)"></i></div><div class="q">All clear<span>Auto-cleared, sitting one click from approval in Processed.</span></div><div class="route"><span class="pill p-ok"><span class="dot"></span>Auto-cleared</span></div></div>
       </div>
     </div>
@@ -501,8 +502,9 @@
           <div class="feat"><div class="k">2</div><div><h3>Three-part hierarchy</h3><p>Invoice details → match summary → line items. The match bar is visually its own band so it reads as something the system is telling you, not a field you filled in.</p><span class="why">Separates evidence from input.</span></div></div>
           <div class="feat"><div class="k">3</div><div><h3>All three documents on one line</h3><p>Every line carries the invoiced qty and price next to the <b>GRN qty</b> received and the <b>PO price</b> agreed, plus its own verdict — "6.2% vs PO", "Qty +4 vs GRN", "Not on PO-5530", "Awaiting GRN". Under 2-way matching the GRN column disappears.</p><span class="why">The variance is arithmetic the reviewer can see, not a claim they have to trust.</span></div></div>
           <div class="feat"><div class="k">4</div><div><h3>Goods receipt named on the invoice</h3><p>The GRN reference sits beside the order number — the two documents being matched against — with how many lines have actually been received against it.</p><span class="why">"Awaiting GRN" stops being a mystery: you can see which receipt, and how much of it landed.</span></div></div>
-          <div class="feat"><div class="k">5</div><div><h3>Source document alongside</h3><p>A rendering of the captured document — invoice and delivery dates, PO reference, bill-to/deliver-to, line items, GST and total — next to the extracted data.</p><span class="why">Verify an extraction without opening the original file.</span></div></div>
-          <div class="feat"><div class="k">6</div><div><h3>Edit history and pager</h3><p>Every line edit is attributed and timestamped; arrow keys page through the filtered queue you arrived from.</p><span class="why">Review a batch without bouncing back to the list.</span></div></div>
+          <div class="feat"><div class="k">5</div><div><h3>A consolidated invoice reads as several small matches</h3><p>When one invoice spans more than one PO, line items cluster under a group header per PO, each with its own subtotal and match verdict — one PO's lines can be clean while another's has an exception. An item ordered on two POs gets "Also on PO-5528" under its name, so a repeated line reads as a deliberate split, not a duplicate.</p><span class="why">One table that silently averaged two POs together would hide exactly the thing worth seeing.</span></div></div>
+          <div class="feat"><div class="k">6</div><div><h3>Source document alongside</h3><p>A rendering of the captured document — invoice and delivery dates, PO reference, bill-to/deliver-to, line items, GST and total — next to the extracted data.</p><span class="why">Verify an extraction without opening the original file.</span></div></div>
+          <div class="feat"><div class="k">7</div><div><h3>Edit history and pager</h3><p>Every line edit is attributed and timestamped; arrow keys page through the filtered queue you arrived from.</p><span class="why">Review a batch without bouncing back to the list.</span></div></div>
         </div>
       </div>
     </div>
@@ -551,6 +553,7 @@
         <div class="q-item reveal"><h3>Do we need an undo window on auto-posting?</h3><p>The agent spec has one. This revamp shows the audit trail but doesn't expose an undo — is that a gap for launch or a fast-follow?</p></div>
         <div class="q-item reveal"><h3>What's the escalation path to CS?</h3><p>If we're pulling CS out of routine review, the product needs an explicit "get help on this invoice" route, or people will just email anyway.</p></div>
         <div class="q-item reveal"><h3>How do we measure success?</h3><p>Proposed: exceptions resolved without a CS touch, median time from upload to export, and auto-clear rate — but worth agreeing targets before build.</p></div>
+        <div class="q-item reveal"><h3>Does linking more than one PO need its own flow?</h3><p>Today the data model and every screen read multiple POs correctly, but "Link PO" still attaches one at a time — a person adds a second by re-opening the same field. Worth a proper multi-add control, or is re-opening it fine for how rarely one invoice spans more than two POs?</p></div>
       </div>
     </div>
   </section>
@@ -585,10 +588,21 @@
    returning reader scans to see what changed since they last looked.
    ════════════════════════════════════════════════════════════════════ */
 const DECK = {
-  version: '0.4',
+  version: '0.5',
   updated: '15 September 2026',
   status: 'Draft — for internal review',
   changelog: [
+    {
+      v: '0.5',
+      date: '15 Sep 2026',
+      notes: [
+        'An invoice can now span more than one PO, and a PO can now be split across more than one invoice — both real supplier behaviors the data model couldn’t express before (a PO already linked to any invoice was hard-blocked from ever being linked to another).',
+        'New gating check: a PO split across invoices is fine on its own, but the pieces still have to add up to what was ordered — "PO exceeded" catches the combined total running past that, checked against every invoice referencing the PO, not just one.',
+        'Consolidated invoices render as several small matches: line items cluster under a group header per PO, each with its own subtotal and verdict. An item ordered on two POs gets an "Also on PO-x" note so a repeated line reads as a deliberate split, not a duplicate — added after review surfaced that the first version left this ambiguous.',
+        'The PO type-ahead now shows "Also on INV-x" for a PO already linked elsewhere instead of hiding it from the list.',
+        'Gating-logic slide renumbered to insert the new check in its actual order (right after composition, before goods receipt) rather than tacking it on the end.',
+      ],
+    },
     {
       v: '0.4',
       date: '15 Sep 2026',
