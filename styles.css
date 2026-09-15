@@ -382,7 +382,15 @@
      below it where the shorter content made middle-align look top-aligned
      by coincidence. Top-align keeps every cell level with the first line
      of the description regardless of how tall the row gets. */
-  .linetable td{ padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; background:var(--surface); }
+  /* font-size:12.5px here isn't decorative — the page's generic td{} rule
+     (for the Uploads/Processed queue tables) sets 13.5px directly on every
+     <td> including these, and a directly-set property always beats an
+     inherited one regardless of selector specificity, so .linetable's own
+     font-size:12.5px was silently losing on any cell without its own
+     override (.li-input/.li-ref already had one — Amount, Match, and now
+     a merged row's plain-text cells didn't, and rendered 1px larger than
+     everything else in the same row). */
+  .linetable td{ padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; background:var(--surface); font-size:12.5px; }
   .linetable tbody tr:last-child td{ border-bottom:none; }
   /* Top-align (above) exposed a second, smaller mismatch: an editable
      cell's text sits inside .li-input's own 1px border + 5px padding, ~6px
