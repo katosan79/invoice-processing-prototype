@@ -1195,6 +1195,22 @@
     // same source computeOutcome()/runChecks() already check for unmapped
     // items in this mode.
     const displayLines = MATCH_MODE === 'none' && !inv.lines.length ? (inv.capturedLines || []) : inv.lines;
+    // On a consolidated invoice, the same item can legitimately appear
+    // under more than one PO (different order, same SKU) — each gets its
+    // own row under its own PO's group, since they're genuinely separate
+    // order lines that could carry different prices. But two rows with an
+    // identical description and nothing else distinguishing them reads as
+    // an accidental duplicate, not a deliberate split — this map is what
+    // lets each row note the other PO(s) the same SKU also appears under.
+    const skuToPOs = new Map();
+    if (invPOList(inv).length > 1) {
+      displayLines.forEach(l => {
+        const po = l.sku && linePO(inv, l);
+        if (!po) return;
+        if (!skuToPOs.has(l.sku)) skuToPOs.set(l.sku, new Set());
+        skuToPOs.get(l.sku).add(po);
+      });
+    }
     const lineRows = displayLines.map((l, idx) => ({ po: linePO(inv, l), line: l, html: (() => {
       if (MATCH_MODE === 'none') {
         // Read-only, not editable like the 3-way/2-way rows below: when the
@@ -1274,9 +1290,11 @@
         : l.grn === null ? '<span title="Not received yet">—</span>' : String(l.grn);
       const poCell = (l.extra || l.unmapped) ? '<span title="Not on the purchase order">—</span>' : fmt(l.poPrice);
       const editedTag = l.edited ? ' <span class="li-edited" title="Corrected by a person — see History">·edited</span>' : '';
+      const sharedPOs = l.sku && skuToPOs.has(l.sku) ? [...skuToPOs.get(l.sku)].filter(p => p !== linePO(inv, l)) : [];
+      const alsoOnNote = sharedPOs.length ? `<div class="li-also-on">Also on ${sharedPOs.join(', ')}</div>` : '';
       return `<tr>
         <td class="drag">⠿</td>
-        <td><input class="li-input" value="${escapeHtml(l.name)}" onchange="commitLineEdit('${inv.id}',${idx},'name','Description',this.value)"/><div class="li-sku">${l.sku||''}${editedTag}</div></td>
+        <td><input class="li-input" value="${escapeHtml(l.name)}" onchange="commitLineEdit('${inv.id}',${idx},'name','Description',this.value)"/><div class="li-sku">${l.sku||''}${editedTag}</div>${alsoOnNote}</td>
         <td><input class="li-input num" value="${l.qty}" onchange="commitLineEdit('${inv.id}',${idx},'qty','Qty',this.value)"/></td>
         <td class="c-grn-cell li-ref${qtyOk ? '' : ' ref-warn'}">${grnCell}</td>
         <td><input class="li-input" value="${escapeHtml(l.uom||'')}" onchange="commitLineEdit('${inv.id}',${idx},'uom','Unit size',this.value)"/></td>

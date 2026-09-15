@@ -379,6 +379,11 @@
   .linetable .li-input:hover{ border-color:var(--line); background:var(--surface); }
   .linetable .li-input:focus{ border-color:var(--fern); background:var(--surface); }
   .li-sku{ color:var(--text-soft); font-size:10.5px; margin-top:2px; }
+  /* Marks a row whose item also appears under a different PO group on the
+     same consolidated invoice — without this, two rows with an identical
+     description read as an accidental duplicate rather than a deliberate
+     split across POs. */
+  .li-also-on{ color:var(--skytext); font-size:10.5px; margin-top:1px; }
   /* a "missing" line is a PO item that was never invoiced — a ghost row,
      not something to edit, so it's visually quieter than a real line */
   .li-row-missing td{ background:var(--surface-soft); color:var(--text-soft); }
