@@ -414,7 +414,7 @@
         <div class="card reveal">
           <div class="ico"><i class="ti ti-adjustments-horizontal"></i></div>
           <h3>Matching mode</h3>
-          <p><b>3-way</b> (default) checks price and quantity against what was actually received. <b>2-way</b> drops the goods-receipt leg for suppliers who never raise one — services, subscriptions — and says plainly what control that costs you.</p>
+          <p><b>3-way</b> (default) checks price and quantity against what was actually received. <b>2-way</b> drops the goods-receipt leg for suppliers who never raise one — services, subscriptions. <b>No matching</b> drops both legs — no PO required, price and quantity never checked — for teams that would rather process as-is than block on matching at all. Item identity is the one check that survives every tier: an unmapped item still needs a person, matching on or off. Each step down states plainly what control it costs.</p>
         </div>
         <div class="card reveal">
           <div class="ico"><i class="ti ti-percentage"></i></div>
@@ -534,7 +534,7 @@
         <div><i class="ti ti-circle-x"></i><span><b>Not a change to ordering or goods receipt.</b> POs and GRNs are consumed as-is; anything upstream is a separate workstream.</span></div>
         <div><i class="ti ti-circle-x"></i><span><b>Not an accounting integration change.</b> Export behaviour and the supported targets are unchanged.</span></div>
         <div><i class="ti ti-circle-x"></i><span><b>Not removing CS entirely.</b> The goal is that CS handles genuine escalations, not routine variance review.</span></div>
-        <div><i class="ti ti-circle-x"></i><span><b>Not a mobile app.</b> Capture on mobile already works; this revamp is the review surface, which is desktop-first.</span></div>
+        <div><i class="ti ti-circle-x"></i><span><b>Not a mobile app.</b> Capture on mobile already works, and the Invoices review flow now reflows down to phone width (a hamburger drawer replaces the sidebar; the two-column detail screen stacks) — but this is a responsive web pass on the existing screens, not a native app or a mobile-specific redesign.</span></div>
       </div>
     </div>
   </section>
@@ -547,7 +547,7 @@
       <p class="lede reveal">Where I'd most like a view before this goes further.</p>
       <div class="qlist">
         <div class="q-item reveal"><h3>Should tolerances be scoped per supplier?</h3><p>Org-wide is simple but blunt. Produce suppliers move on price far more than dry goods — one global threshold will either be too loose or too noisy.</p></div>
-        <div class="q-item reveal"><h3>Who is allowed to change matching policy?</h3><p>Switching to 2-way materially lowers control. Should that be finance-only, or is outlet-level fine with an audit note?</p></div>
+        <div class="q-item reveal"><h3>Who is allowed to change matching policy?</h3><p>2-way materially lowers control; No matching drops both legs at once. Should either be finance-only, or is outlet-level fine with an audit note — and should No matching need a higher bar than 2-way to turn on?</p></div>
         <div class="q-item reveal"><h3>Do we need an undo window on auto-posting?</h3><p>The agent spec has one. This revamp shows the audit trail but doesn't expose an undo — is that a gap for launch or a fast-follow?</p></div>
         <div class="q-item reveal"><h3>What's the escalation path to CS?</h3><p>If we're pulling CS out of routine review, the product needs an explicit "get help on this invoice" route, or people will just email anyway.</p></div>
         <div class="q-item reveal"><h3>How do we measure success?</h3><p>Proposed: exceptions resolved without a CS touch, median time from upload to export, and auto-clear rate — but worth agreeing targets before build.</p></div>
@@ -585,10 +585,21 @@
    returning reader scans to see what changed since they last looked.
    ════════════════════════════════════════════════════════════════════ */
 const DECK = {
-  version: '0.3',
+  version: '0.4',
   updated: '15 September 2026',
   status: 'Draft — for internal review',
   changelog: [
+    {
+      v: '0.4',
+      date: '15 Sep 2026',
+      notes: [
+        'Added a third matching policy, "No matching" — no PO required, price and quantity never checked, for teams that would rather process as-is than block on matching. Item identity is the one check every tier keeps: an unmapped item still needs a person regardless of matching policy.',
+        'A line failing both a price and a quantity check now shows two status pills, not one silently picked over the other — same fix on the Needs-your-input row when an invoice has both exceptions.',
+        'Fixed a real rendering bug the above surfaced: hiding a line-item column with display:none was desyncing the table from its own column widths once two columns collapsed at once (2-way already had this bug with one column; it just never became visible before).',
+        'Fixed transparent-looking table rows across Uploads, Processed and the line-items table — a scroll-shadow background layer was never actually opaque in the middle.',
+        'Added a mobile breakpoint. There wasn’t one at all before this — the sidebar is now a hamburger-triggered drawer below ~860px, and the invoice detail screen’s two-column layout stacks.',
+      ],
+    },
     {
       v: '0.3',
       date: '15 Sep 2026',
