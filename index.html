@@ -34,9 +34,11 @@
       <div class="topbar">
         <h1 id="page-title">Invoices</h1>
         <div class="actions">
-          <button class="btn btn-ghost" id="daterange-btn" onclick="openDateRangeModal()">📅 All time</button>
-          <button class="btn btn-ghost" id="match-settings-btn" onclick="openSettingsModal()">⚙ Matching: 3-way</button>
-          <button class="btn btn-ghost" onclick="openUploadModal()">↑ Upload invoice</button>
+          <div class="topbar-queue-actions" id="topbar-queue-actions">
+            <button class="btn btn-quiet" id="daterange-btn" onclick="openDateRangeModal()">📅 All time</button>
+            <button class="btn btn-quiet" id="match-settings-btn" onclick="openSettingsModal()">⚙ Matching: 3-way</button>
+            <button class="btn btn-go" onclick="openUploadModal()">↑ Upload invoice</button>
+          </div>
           <div class="help-user">Help &nbsp;·&nbsp; Keith Tan ▾</div>
         </div>
       </div>
@@ -103,6 +105,7 @@
     <!-- ═══ INVOICES (processed) ═══ -->
     <section class="view" id="v-proc">
       <div class="statusfilter" id="proc-filter">
+        <span class="statusfilter-label">Show</span>
         <button class="sf-btn on" data-sf="action" onclick="setProcFilter('action')">Action needed <span class="n"></span></button>
         <button class="sf-btn" data-sf="exported" onclick="setProcFilter('exported')">Exported <span class="n"></span></button>
       </div>
@@ -147,6 +150,7 @@
 
       <div class="detailgrid">
         <div class="detailform">
+          <label class="section-label">Invoice details</label>
           <div class="fieldrow">
             <div class="field"><label>Supplier</label><div id="d-supplier"></div></div>
             <div class="field"><label>Delivered to</label><div id="d-outlet"></div></div>
@@ -176,7 +180,7 @@
           </div>
 
           <div id="d-matchbar"></div>
-          <label style="font-size:11.5px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.03em;">Line items</label>
+          <label class="section-label">Line items</label>
           <div class="linetable-wrap" style="margin-top:8px;">
             <table class="linetable">
               <colgroup><col class="c-drag"><col class="c-desc"><col class="c-qty"><col class="c-size"><col class="c-price"><col class="c-disc"><col class="c-gst"><col class="c-amt"><col class="c-match"><col class="c-del"></colgroup>

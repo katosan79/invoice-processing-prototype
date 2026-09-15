@@ -684,6 +684,7 @@
   function setQueueChromeVisible(visible){
     document.getElementById('statrow-wrap').style.display = visible ? '' : 'none';
     document.getElementById('tabsrow').style.display = visible ? '' : 'none';
+    document.getElementById('topbar-queue-actions').style.display = visible ? '' : 'none';
   }
   function showTab(v){
     setQueueChromeVisible(true);
