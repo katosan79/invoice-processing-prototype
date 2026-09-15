@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Invoice Review Prototype</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="topstrip">🧪 Prototype — proposed redesign for invoice capture, exception review &amp; status. <b>Not the live product.</b></div>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="mark">🌱</span><span class="word">nomni <em>Procure</em></span></div>
+      <nav class="navlist">
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>Reports</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Orders</button>
+        <button class="navitem active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l5 5v15H6z"/><path d="M9 12h6M9 16h6"/></svg>Invoices</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>Payments</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>Items</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-6 9 6v11H3z"/></svg>Inventory</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h14v18l-7-4-7 4z"/></svg>Recipes</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/></svg>Outlets</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.4"/><path d="M4 20c1.6-4 5-6 8-6s6.4 2 8 6"/></svg>Users</button>
+        <button class="navitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 0112 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 004 0"/></svg>News</button>
+      </nav>
+      <div class="proto-note"><b>Why this exists</b><br>Built from the current-state UX review to show a proposed redesign for invoice capture, exception review, and status end to end.</div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <h1 id="page-title">Invoices</h1>
+        <div class="actions">
+          <button class="btn btn-ghost" id="match-settings-btn" onclick="openSettingsModal()">⚙ Matching: 3-way</button>
+          <button class="btn btn-ghost" onclick="openUploadModal()">↑ Upload invoice</button>
+          <div class="help-user">Help &nbsp;·&nbsp; Keith Tan ▾</div>
+        </div>
+      </div>
+
+      <div class="statrow" id="statrow"></div>
+
+      <div class="tabs">
+        <button class="tab on" data-v="uploads">Uploads <span class="n">11</span></button>
+        <button class="tab" data-v="needs">Needs your input <span class="n">5</span></button>
+        <button class="tab" data-v="proc">Processed</button>
+      </div>
+
+    <!-- ═══ UPLOADS ═══ -->
+    <section class="view on" id="v-uploads">
+      <div class="listbar">
+        <div class="search"><span class="ic">🔍</span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('uploads','query',this.value)"></div>
+        <select onchange="updateListCtl('uploads','outlet',this.value)">
+          <option value="">All outlets</option>
+          <option>Bondi Beach</option><option>Newtown</option><option>Parramatta Table</option><option>Melbourne CBD</option><option>Surry Hills</option>
+        </select>
+        <select onchange="updateListCtl('uploads','sort',this.value)">
+          <option value="new">Newest first</option>
+          <option value="old">Oldest first</option>
+          <option value="supplier">Supplier A–Z</option>
+        </select>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Received</th><th>Invoice #</th><th>Invoice date</th><th>Outlet</th><th>Supplier</th><th>What's blocking</th><th></th></tr></thead>
+          <tbody id="tb-uploads"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ NEEDS YOUR INPUT ═══ -->
+    <section class="view" id="v-needs">
+      <div class="bulkbar">
+        <label><input type="checkbox" onchange="if(this.checked) openModal(); else this.checked=false;"> Approve all selected under configured tolerance (±2% price · ±1% qty)</label>
+        <button class="btn btn-ghost" disabled>Approve selected (0)</button>
+      </div>
+      <div class="listbar">
+        <div class="search"><span class="ic">🔍</span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('needs','query',this.value)"></div>
+        <select onchange="updateListCtl('needs','reason',this.value)">
+          <option value="">Any reason</option>
+          <option>Price</option><option>Quantity</option><option>Total mismatch</option><option>Extra items</option><option>Items missing</option><option>Items differ from PO</option><option>Unmapped item</option>
+        </select>
+        <select onchange="updateListCtl('needs','outlet',this.value)">
+          <option value="">All outlets</option>
+          <option>Bondi Beach</option><option>Newtown</option><option>Parramatta Table</option><option>Melbourne CBD</option><option>Surry Hills</option>
+        </select>
+        <select onchange="updateListCtl('needs','sort',this.value)">
+          <option value="new">Newest first</option>
+          <option value="old">Oldest first</option>
+          <option value="supplier">Supplier A–Z</option>
+          <option value="amount">Amount, high to low</option>
+        </select>
+      </div>
+      <div id="tb-needs"></div>
+    </section>
+
+    <!-- ═══ INVOICES (processed) ═══ -->
+    <section class="view" id="v-proc">
+      <div class="statusfilter" id="proc-filter">
+        <button class="sf-btn on" data-sf="action" onclick="setProcFilter('action')">Action needed <span class="n"></span></button>
+        <button class="sf-btn" data-sf="exported" onclick="setProcFilter('exported')">Exported <span class="n"></span></button>
+      </div>
+      <div class="listbar">
+        <div class="search"><span class="ic">🔍</span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('proc','query',this.value)"></div>
+        <select onchange="updateListCtl('proc','outlet',this.value)">
+          <option value="">All outlets</option>
+          <option>Bondi Beach</option><option>Newtown</option><option>Parramatta Table</option><option>Melbourne CBD</option><option>Surry Hills</option>
+        </select>
+        <select onchange="updateListCtl('proc','sort',this.value)">
+          <option value="new">Newest first</option>
+          <option value="old">Oldest first</option>
+          <option value="supplier">Supplier A–Z</option>
+          <option value="amount">Amount, high to low</option>
+        </select>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Date</th><th>No.</th><th>Supplier</th><th>Outlet</th><th>Total</th><th>How it posted</th><th>Sync</th><th></th></tr></thead>
+          <tbody id="tb-proc"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══ EXCEPTION DETAIL ═══ -->
+    <section class="view" id="v-detail">
+      <div class="detail-toprow">
+        <button class="backlink" id="detail-back">← Back</button>
+        <div class="detail-pager" id="detail-pager"></div>
+      </div>
+      <div class="dochead">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span class="files" id="d-files"></span>
+          <span id="d-srcbadge"></span>
+          <span id="d-pagesbadge"></span>
+          <span id="d-statuspill"></span>
+          <span style="color:#9FA89F" id="d-uploader"></span>
+          <span id="d-history"></span>
+        </div>
+        <div class="toolbar" id="d-toolbar"></div>
+      </div>
+
+      <div class="detailgrid">
+        <div class="detailform">
+          <div class="fieldrow">
+            <div class="field"><label>Supplier</label><div id="d-supplier"></div></div>
+            <div class="field"><label>Delivered to</label><div id="d-outlet"></div></div>
+          </div>
+          <div class="fieldrow">
+            <div class="field">
+              <label>Invoice number</label>
+              <div id="d-id"></div>
+            </div>
+            <div class="field"><label>Invoice date</label><div id="d-date"></div></div>
+          </div>
+          <div class="fieldrow">
+            <div class="field" style="margin-bottom:18px;">
+              <label>Order number</label>
+              <div id="d-pochips"></div>
+              <div class="pohelp" id="d-pohelp">"Use data" pulls quantities and prices from this PO into the lines below.</div>
+            </div>
+            <div class="field" style="margin-bottom:18px;">
+              <label>Payment terms</label>
+              <select class="li-input" style="height:38px;">
+                <option>30 days from invoice date</option>
+                <option>14 days from invoice date</option>
+                <option>7 days from invoice date</option>
+                <option>Due on receipt</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="d-matchbar"></div>
+          <label style="font-size:11.5px;font-weight:700;color:var(--text-soft);text-transform:uppercase;letter-spacing:.03em;">Line items</label>
+          <div class="linetable-wrap" style="margin-top:8px;">
+            <table class="linetable">
+              <colgroup><col class="c-drag"><col class="c-desc"><col class="c-qty"><col class="c-size"><col class="c-price"><col class="c-disc"><col class="c-gst"><col class="c-amt"><col class="c-match"><col class="c-del"></colgroup>
+              <thead><tr><th></th><th>Description</th><th>Qty</th><th>Unit size</th><th>Unit price</th><th>Disc</th><th>GST %</th><th style="text-align:right">Amount</th><th>Match</th><th></th></tr></thead>
+              <tbody id="d-lines"></tbody>
+            </table>
+            <div class="linetable-actions">
+              <button onclick="toast('New blank line added')">+ Add SKU</button>
+              <button onclick="toast('Add new — from catalogue or free text')">Add new ▾</button>
+              <button onclick="toast('Market list data refreshed')">↻ Refresh market list data</button>
+            </div>
+          </div>
+
+          <div class="agentcard" id="d-margincard" style="display:none;">
+            <div class="who"><span class="dot"></span>MARGIN AGENT</div>
+            <h5 id="d-marginhead"></h5>
+            <div class="sub" id="d-marginsub"></div>
+            <a href="#">View affected recipe →</a>
+          </div>
+        </div>
+
+        <div class="totals">
+          <div class="doclabel">📄 Source document</div>
+          <div class="docmock" id="d-docmock"></div>
+          <div class="docpages" id="d-docpages" style="display:none;">
+            <button id="d-docprev" onclick="changeDocPage(-1)">‹</button>
+            <span id="d-docpagelabel"></span>
+            <button id="d-docnext" onclick="changeDocPage(1)">›</button>
+          </div>
+          <div class="row"><span>Subtotal</span><span id="d-subtotal"></span></div>
+          <div class="row"><span>Delivery fee</span><span id="d-delivery"></span></div>
+          <div class="row"><span>Discount</span><span id="d-discount"></span></div>
+          <div class="row"><span>GST</span><span id="d-gst"></span></div>
+          <div class="row total"><span>Total</span><span id="d-total"></span></div>
+        </div>
+        <div class="footeractions" id="d-footeractions"></div>
+      </div>
+    </section>
+
+    </main>
+  </div>
+
+
+  <div class="modal-bg" id="modal">
+    <div class="modal">
+      <h4>Approve 3 invoices under tolerance?</h4>
+      <p>3 invoices selected, totalling S$1,255.00, all within the ±2% price / ±1% quantity tolerance. This posts them immediately — the confirmation the current bulk-tolerance logic doesn't ask for anywhere today.</p>
+      <div class="row2">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-go" onclick="closeModal()">Approve &amp; post</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DELETE UPLOAD — guardrailed: only reachable while an invoice is still
+       in flight (never once approved/exported), requires a reason, and warns
+       if a PO is already linked before it's gone for good. ═══ -->
+  <div class="modal-bg" id="delete-modal">
+    <div class="modal" style="width:400px;">
+      <h4>Delete this upload?</h4>
+      <p id="del-summary" style="margin-bottom:2px;"></p>
+      <p id="del-warning" style="display:none;color:var(--rosetext);font-weight:600;margin-top:8px;"></p>
+      <div class="fld" style="max-width:none;">
+        <label>Reason (required — kept in the audit log)</label>
+        <select id="del-reason">
+          <option value="">Select a reason…</option>
+          <option value="Mis-upload">Wrong file — mis-upload</option>
+          <option value="Duplicate">Duplicate of another invoice</option>
+          <option value="Test">Test data</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <p style="margin-top:10px;font-size:11.5px;color:var(--text-soft);">This can only be done before an invoice is approved. Deleted uploads are kept for 7 years for audit purposes — hidden from lists, but recoverable by a controller.</p>
+      <div class="row2">
+        <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-go" id="del-confirm-btn" style="background:var(--rose);" disabled onclick="confirmDeleteInvoice()">Delete upload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ UPLOAD MODAL — matches the real product's actual upload interaction
+       (a simple modal, not a full-page wizard); fixes applied on top:
+       raised size cap + explicit multi-page capture. ═══ -->
+  <div class="modal-bg" id="upload-modal">
+    <div class="modal" style="width:460px;">
+      <h4 id="upload-modal-title">Upload invoice</h4>
+      <div class="fld" style="max-width:none;margin-top:10px;">
+        <label>Outlet</label>
+        <select id="outlet">
+          <option value="">Select outlet…</option>
+          <option>Bondi Beach</option>
+          <option>Newtown</option>
+          <option>Parramatta Table</option>
+          <option>Melbourne CBD</option>
+          <option>Surry Hills</option>
+        </select>
+      </div>
+
+      <div class="zone" id="zone" style="margin-top:16px;">
+        <input type="file" id="filein" accept="image/*,application/pdf"/>
+        <div class="glyph">📷</div>
+        <div class="t1" id="zoneLabel">Drag and drop files here or click to upload</div>
+        <div class="t2">JPG, PNG or PDF · up to 15MB — large photos are compressed automatically</div>
+      </div>
+
+      <div id="pagesWrap" style="display:none;">
+        <div class="pagebar">
+          <span class="lab">Pages added (<span id="pageCount">0</span>)</span>
+          <button class="addpage" id="addPageBtn">+ Add another page</button>
+        </div>
+        <div class="pagelist" id="pageList"></div>
+      </div>
+
+      <div class="footnote"><span class="dot">✓</span><span>Every invoice gets the same duplicate check, whether it's a photo, a PDF, an email attachment, or PEPPOL.</span></div>
+
+      <div class="row2">
+        <button class="btn btn-ghost" onclick="closeUploadModal()">Cancel</button>
+        <button class="btn btn-go" onclick="finishUpload()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MATCHING SETTINGS — an org-wide policy switch, not a per-invoice
+       control: changes what "auto-post clean" means for every invoice, so
+       it lives in its own settings surface with an explicit Save step and
+       an upfront note that it re-evaluates the current queue immediately.
+       (A real version of this would also let 2-way be scoped per supplier
+       — flagged here as a fast-follow rather than built into this pass.) ═══ -->
+  <div class="modal-bg" id="settings-modal">
+    <div class="modal" style="width:420px;">
+      <h4>Matching settings</h4>
+      <p>Controls what the Invoice Agent checks before an invoice can auto-post or is sent for review. Applies to every upload — changing this re-evaluates invoices already waiting.</p>
+
+      <label class="matchmode-opt" id="opt-3way">
+        <input type="radio" name="matchmode" value="3way" onchange="previewMatchMode('3way')">
+        <div>
+          <div class="t">3-way match — PO ↔ GRN ↔ Invoice <span style="color:var(--fern);font-weight:600;">(Recommended)</span></div>
+          <div class="d">Checks invoice price and quantity against what was actually <b>received</b> (GRN), not just what was ordered. An invoice can't auto-post until goods are logged as delivered.</div>
+        </div>
+      </label>
+
+      <label class="matchmode-opt" id="opt-2way">
+        <input type="radio" name="matchmode" value="2way" onchange="previewMatchMode('2way')">
+        <div>
+          <div class="t">2-way match — PO ↔ Invoice</div>
+          <div class="d">Checks invoice price against the PO only — skips the goods-receipt step entirely. Useful for suppliers who never generate a GRN (services, subscriptions), but means quantity can no longer be verified against a delivery.</div>
+        </div>
+      </label>
+
+      <div class="matchmode-warn" id="settings-2way-note" style="display:none;">⚠️&nbsp; Lower control: an invoice billing for more than was delivered will no longer be caught automatically.</div>
+
+      <div class="row2">
+        <button class="btn btn-ghost" onclick="closeSettingsModal()">Cancel</button>
+        <button class="btn btn-go" onclick="saveMatchSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-wrap" style="position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;"></div>
+  <div id="cstat-popover" class="cstat-popover"></div>
+  <div id="history-popover" class="history-popover"></div>
+
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
+
