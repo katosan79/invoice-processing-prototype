@@ -384,6 +384,16 @@
      of the description regardless of how tall the row gets. */
   .linetable td{ padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; background:var(--surface); }
   .linetable tbody tr:last-child td{ border-bottom:none; }
+  /* Top-align (above) exposed a second, smaller mismatch: an editable
+     cell's text sits inside .li-input's own 1px border + 5px padding, ~6px
+     lower than a plain-text cell's text, which sits flush at the td's own
+     padding edge — so PO qty/GRN qty/PO price/Amount/Match/the drag handle
+     all read a few pixels "too high" next to Description/Qty/Unit price
+     beside them. Push them down by that same ~6px so every cell's text
+     starts on one shared baseline regardless of whether it's an <input>
+     or plain text. */
+  .linetable td.li-ref, .linetable td.li-amt, .linetable td.li-match,
+  .linetable td.drag, .linetable td.rowdel{ padding-top:12px; }
   .linetable .drag, .linetable .rowdel{ color:var(--text-soft); text-align:center; width:20px; cursor:pointer; font-size:13px; }
   .linetable .rowdel:hover{ color:var(--rosetext); }
   .li-input{ border:1px solid var(--line); border-radius:6px; padding:5px 7px; font:inherit; font-size:12.5px; width:100%; box-sizing:border-box; background:var(--surface); color:var(--text); }

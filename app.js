@@ -1181,7 +1181,7 @@
         <td>—</td>
         <td>—</td>
         <td class="li-amt">${fmt(qty*price)}</td>
-        <td>${statusHtml}</td>
+        <td class="li-match">${statusHtml}</td>
         <td></td>
       </tr>`;
     }
@@ -1193,7 +1193,7 @@
         <td class="li-ref c-popr-cell">${fmt(l.poPrice)}</td>
         <td>—</td><td>—</td>
         <td class="li-amt">—</td>
-        <td><span class="status status-warn"><span class="dot"></span>Not invoiced</span></td>
+        <td class="li-match"><span class="status status-warn"><span class="dot"></span>Not invoiced</span></td>
         <td></td>
       </tr>`;
     }
@@ -1240,7 +1240,7 @@
         <td><input class="li-input num" value="0"/></td>
         <td><input class="li-input num" value="10"/></td>
         <td class="li-amt">${fmt(l.qty*l.invPrice)}</td>
-        <td>${statusHtml}</td>
+        <td class="li-match">${statusHtml}</td>
         <td class="rowdel" onclick="toast('Line removed')">✕</td>
       </tr>`;
     }
@@ -1292,7 +1292,7 @@
         <td class="li-ref c-popr-cell${anyPriceIssue ? ' ref-off' : ''}">${fmt(sample.poPrice)}</td>
         <td>0</td><td>10</td>
         <td class="li-amt">${fmt(amount)}</td>
-        <td>${statusHtml}</td>
+        <td class="li-match">${statusHtml}</td>
         <td></td>
       </tr>`;
     }
