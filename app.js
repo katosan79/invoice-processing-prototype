@@ -59,6 +59,49 @@
 
   // { preset, from, to } — 'all' ignores from/to entirely; every other
   // preset (including 'custom') is a concrete [from,to] window.
+  /* ── Bulk resolution policy for Needs your input ───────────────────────
+     Only reasons with ONE unambiguous money decision can be settled in a
+     batch. Composition problems — an unmapped item, extra items, an item
+     set that doesn't match the PO — need a per-item judgement or a data
+     fix first, so they're deliberately absent here and the bulk button
+     stays disabled for them. Same reasoning buildFooter() uses when it
+     gives "Extra items" no default action on the detail screen: if
+     resolving it means deciding about money, you can decide for a batch;
+     if it means fixing data or judging individual lines, the invoice has
+     to be opened.
+
+     Each entry mirrors the primary action the detail screen offers for
+     that reason, so bulk and single-invoice resolution can't disagree.
+     Declared here rather than beside its functions because
+     renderNeedsTab() reads both during the eager refreshAllTables()
+     call below — a `const` further down the file would still be in its
+     temporal dead zone at that point. ── */
+  const BULK_RESOLUTIONS = {
+    'Price': {
+      label: n => `Approve ${n} price variance${n>1?'s':''} anyway`,
+      note: 'Approved with override — logged to audit trail',
+      warn: 'Posts above the PO price. Each override is recorded against your name.',
+    },
+    'Quantity': {
+      label: n => `Raise ${n} credit note${n>1?'s':''}`,
+      note: 'Credit note drafted — invoice marked resolved',
+      warn: 'Drafts a credit note for the over-billed quantity on each invoice.',
+    },
+    'Total mismatch': {
+      label: n => `Approve ${n} anyway`,
+      note: 'Approved with override — logged to audit trail',
+      warn: "The invoice total doesn't reconcile with its own lines. Each override is recorded.",
+    },
+    'Items missing': {
+      label: n => `Accept ${n} as short-shipped`,
+      note: 'Accepted as short-shipped — PO line stays open for the missing item',
+      warn: 'Accepts each invoice for what was actually billed. The un-invoiced PO lines stay open.',
+    },
+  };
+  // Selection survives filtering and re-render; keyed by invoice id and
+  // narrowed to whatever is currently visible whenever it's read.
+  const NEEDS_SELECTION = new Set();
+
   let DATE_RANGE = { preset:'all', from:null, to:null };
   // Referenced by renderDateRangeCopy(), which runs as part of the eager
   // refreshAllTables() call below — must be defined before that point, not
@@ -620,13 +663,16 @@
     const shown = applyListCtl(needs, 'needs');
     document.getElementById('tb-needs').innerHTML = shown.length ? shown.map(inv => `
     <div class="exc" onclick="openDetail('${inv.id}','needs')">
-      <input type="checkbox" onclick="event.stopPropagation()">
+      <input type="checkbox" class="needs-check" data-id="${inv.id}"${NEEDS_SELECTION.has(inv.id) ? ' checked' : ''} onclick="event.stopPropagation()" onchange="toggleNeedsCheck('${inv.id}', this.checked)">
       <div>
         <div class="supplier sup-cell">${supplierAvatar(inv)}<span>${inv.supplier || 'Unknown supplier'} — INV ${inv.id.replace('INV-','')} <span class="amt2">${fmt(inv.amount)}</span></span></div>
         <div class="why"><span class="status ${reasonClass(inv)}"><span class="dot"></span>${inv.reasonTag}</span>${inv.why}</div>
       </div>
       <button class="btn btn-ghost" onclick="event.stopPropagation();openDetail('${inv.id}','needs')">Review</button>
     </div>`).join('') : `<div class="emptystate">${needs.length ? '✓ No matches — try a different search or filter' : '✓ Nothing needs your input right now'}</div>`;
+    // Re-rendering replaces the checkboxes, so re-sync the bulk bar against
+    // whatever is still both selected and visible.
+    updateNeedsSelection();
   }
 
   /* ── Invoices tab bounds itself with a status sub-filter: 'action needed' (ok +
@@ -650,7 +696,9 @@
       <td>${inv.poDate||inv.date}</td><td>${inv.id}</td>
       <td><div class="sup-cell">${supplierAvatar(inv)}<span>${inv.supplier}</span></div></td>
       <td>${inv.outlet||'—'}</td><td class="amt">${fmt(inv.amount)}</td>
-      <td>${inv.status==='approved' ? '<span class="status status-ok"><span class="dot"></span>Approved w/ Keith Tan</span>' : '<span class="status status-ok"><span class="dot"></span>Auto-posted</span>'}</td>
+      <td>${inv.status==='approved'
+        ? `<span class="status status-ok"><span class="dot"></span>Approved w/ Keith Tan</span>${inv.resolutionNote ? `<div class="posted-note">${inv.reasonTag ? inv.reasonTag + ' · ' : ''}${inv.resolutionNote}</div>` : ''}`
+        : '<span class="status status-ok"><span class="dot"></span>Auto-posted</span>'}</td>
       <td>${inv.status==='exported' ? `<span style="color:var(--fern);font-weight:700;">✓ Synced to ${ACCOUNTING_SYSTEM}</span>` : inv.status==='approved' ? `<a href="#" class="xerolink" onclick="event.preventDefault();event.stopPropagation();exportInvoice('${inv.id}')">Export to ${ACCOUNTING_SYSTEM} →</a>` : '<span class="status status-neutral"><span class="dot"></span>Not yet — pending approval</span>'}</td>
       <td><button class="btn btn-ghost" onclick="event.stopPropagation();openDetail('${inv.id}','proc')">View</button></td>
     </tr>`).join('') : `<tr><td colspan="7"><div class="emptystate">${stageFiltered.length ? '✓ No matches — try a different search or filter' : (window._procFilter === 'exported' ? '✓ Nothing exported yet' : '✓ Nothing waiting on you — check Exported for history')}</div></td></tr>`;
@@ -1014,10 +1062,79 @@
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
-  function openModal(){ document.getElementById('modal').classList.add('on'); }
-  function closeModal(){
-    document.getElementById('modal').classList.remove('on');
-    document.querySelectorAll('#v-needs input[type=checkbox]').forEach(c=>c.checked=false);
+  /* ── Bulk resolution in Needs your input ───────────────────────────────
+     BULK_RESOLUTIONS and NEEDS_SELECTION are declared up top with the
+     other module-level config — renderNeedsTab() reads them during the
+     eager refreshAllTables() call, which runs before this point in the
+     file. ── */
+  function needsSelectionState(){
+    const shown = applyListCtl(getNeeds(), 'needs');
+    const selected = shown.filter(i => NEEDS_SELECTION.has(i.id));
+    const reasons = Array.from(new Set(selected.map(i => i.reasonTag)));
+    return { shown, selected, reasons, resolution: reasons.length === 1 ? BULK_RESOLUTIONS[reasons[0]] : null };
+  }
+
+  function updateNeedsSelection(){
+    const { shown, selected, reasons, resolution } = needsSelectionState();
+    const all  = document.getElementById('needs-select-all');
+    const btn  = document.getElementById('bulk-approve-btn');
+    const note = document.getElementById('bulk-note');
+    if (all) {
+      all.checked = shown.length > 0 && selected.length === shown.length;
+      all.indeterminate = selected.length > 0 && selected.length < shown.length;
+    }
+    if (!btn || !note) return;
+    if (!selected.length) {
+      btn.disabled = true; btn.textContent = 'Approve selected (0)'; note.textContent = '';
+    } else if (reasons.length > 1) {
+      btn.disabled = true; btn.textContent = `${selected.length} selected`;
+      note.textContent = `Mixed reasons (${reasons.join(', ')}) — each needs a different resolution. Filter to one reason to act in bulk.`;
+    } else if (!resolution) {
+      btn.disabled = true; btn.textContent = `${selected.length} selected`;
+      note.textContent = `“${reasons[0]}” needs a per-invoice decision — open each one to resolve it.`;
+    } else {
+      btn.disabled = false; btn.textContent = resolution.label(selected.length);
+      const impact = selected.reduce((s,i) => s + exceptionCaughtAmount(i), 0);
+      note.textContent = impact > 0 ? `${fmt(impact)} of variance across ${selected.length} invoice${selected.length>1?'s':''}` : '';
+    }
+  }
+
+  function toggleNeedsCheck(id, checked){
+    if (checked) NEEDS_SELECTION.add(id); else NEEDS_SELECTION.delete(id);
+    updateNeedsSelection();
+  }
+  function toggleSelectAllNeeds(checked){
+    needsSelectionState().shown.forEach(i => checked ? NEEDS_SELECTION.add(i.id) : NEEDS_SELECTION.delete(i.id));
+    renderNeedsTab();
+  }
+
+  function openBulkApproveModal(){
+    const { selected, reasons, resolution } = needsSelectionState();
+    if (!selected.length || !resolution) return;
+    const total  = selected.reduce((s,i) => s + i.amount, 0);
+    const impact = selected.reduce((s,i) => s + exceptionCaughtAmount(i), 0);
+    document.getElementById('bulk-modal-title').textContent = resolution.label(selected.length) + '?';
+    document.getElementById('bulk-modal-body').innerHTML =
+      `${selected.length} invoice${selected.length>1?'s':''} totalling <b>${fmt(total)}</b>, all flagged <b>${reasons[0]}</b>` +
+      (impact > 0 ? `, carrying <b>${fmt(impact)}</b> of variance against the PO` : '') + '.';
+    document.getElementById('bulk-modal-warn').textContent = resolution.warn;
+    document.getElementById('bulk-modal-confirm').textContent = resolution.label(selected.length);
+    document.getElementById('modal').classList.add('on');
+  }
+  function closeModal(){ document.getElementById('modal').classList.remove('on'); }
+  function confirmBulkApprove(){
+    const { selected, resolution } = needsSelectionState();
+    if (!selected.length || !resolution) return;
+    // Resolved in place rather than through approveInvoice() per invoice:
+    // that routes through transitionInvoice(), which navigates back to a
+    // tab and toasts on every call — it would bounce the user out of the
+    // queue mid-batch and fire one toast per invoice.
+    selected.forEach(inv => { inv.status = 'approved'; inv.resolutionNote = resolution.note; });
+    const n = selected.length;
+    NEEDS_SELECTION.clear();
+    closeModal();
+    refreshAllTables();
+    toast(`${n} invoice${n>1?'s':''} resolved — ${resolution.note.toLowerCase()}`);
   }
 
   /* ── Matching settings — org-wide policy, not a per-invoice toggle. Opens
@@ -1175,7 +1292,14 @@
     refreshAllTables();
     showTab(window._detailFrom || 'uploads');
   }
-  function approveInvoice(id, msg){ transitionInvoice(id, 'approved', msg || 'Approved — ready to export'); }
+  // Callers that resolve an exception pass a sentence describing HOW it was
+  // resolved ("Credit note drafted…", "Accepted as short-shipped…"); keep it
+  // on the invoice so Processed can show what was actually decided, not just
+  // that someone clicked approve. A plain clean-match approval passes no
+  // message and gets no note.
+  function approveInvoice(id, msg){
+    transitionInvoice(id, 'approved', msg || 'Approved — ready to export', msg ? { resolutionNote: msg } : null);
+  }
   function exportInvoice(id){ transitionInvoice(id, 'exported', `Exported to ${ACCOUNTING_SYSTEM}`, {exportedTo: ACCOUNTING_SYSTEM}); }
   function discardInvoice(id){ removeInvoice(id, 'Discarded'); }
   function rejectUpload(id){ removeInvoice(id, 'Upload rejected'); }

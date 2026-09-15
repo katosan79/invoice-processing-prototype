@@ -79,9 +79,21 @@
 
     <!-- ═══ NEEDS YOUR INPUT ═══ -->
     <section class="view" id="v-needs">
+      <!-- Bulk bar. Note what this deliberately does NOT say: "approve all
+           under tolerance". Everything in this queue is by definition
+           OUTSIDE tolerance — that's why it's here — so the tolerance is
+           shown as the reason these landed here, and the bulk action is
+           framed honestly as an override. See BULK_RESOLUTIONS in app.js
+           for why only some reasons can be resolved in a batch. -->
       <div class="bulkbar">
-        <label><input type="checkbox" onchange="if(this.checked) openModal(); else this.checked=false;"> Approve all selected under tolerance: <span id="tol-bulkbar-copy">±2% price · ±1% qty</span> <a href="#" class="tol-change-link" onclick="event.preventDefault();openToleranceModal();">Change</a></label>
-        <button class="btn btn-ghost" disabled>Approve selected (0)</button>
+        <div class="bulkbar-left">
+          <label class="bulk-selectall"><input type="checkbox" id="needs-select-all" onchange="toggleSelectAllNeeds(this.checked)"> Select all shown</label>
+          <span class="bulk-tol">Fell outside <span id="tol-bulkbar-copy">±2% price · ±1% qty</span> <a href="#" class="tol-change-link" onclick="event.preventDefault();openToleranceModal();">Change</a></span>
+        </div>
+        <div class="bulkbar-right">
+          <span class="bulk-note" id="bulk-note"></span>
+          <button class="btn btn-ghost" id="bulk-approve-btn" disabled onclick="openBulkApproveModal()">Approve selected (0)</button>
+        </div>
       </div>
       <div class="listbar">
         <div class="search"><span class="ic"><i class="ti ti-search"></i></span><input type="text" placeholder="Search supplier or invoice #" oninput="updateListCtl('needs','query',this.value)"></div>
@@ -225,13 +237,19 @@
   </div>
 
 
+  <!-- ═══ BULK RESOLVE — populated from the live selection by
+       openBulkApproveModal(). States the real count, the real total and
+       the real variance being waved through, because this is an override
+       of a check that deliberately failed — the confirmation the current
+       bulk-tolerance logic doesn't ask for anywhere today. ═══ -->
   <div class="modal-bg" id="modal">
-    <div class="modal">
-      <h4>Approve 3 invoices under tolerance?</h4>
-      <p>3 invoices selected, totalling S$1,255.00, all within the ±2% price / ±1% quantity tolerance. This posts them immediately — the confirmation the current bulk-tolerance logic doesn't ask for anywhere today.</p>
+    <div class="modal" style="width:430px;">
+      <h4 id="bulk-modal-title">Resolve selected invoices?</h4>
+      <p id="bulk-modal-body"></p>
+      <div class="matchmode-warn" id="bulk-modal-warn"></div>
       <div class="row2">
         <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-go" onclick="closeModal()">Approve &amp; post</button>
+        <button class="btn btn-go" id="bulk-modal-confirm" onclick="confirmBulkApprove()">Approve &amp; post</button>
       </div>
     </div>
   </div>

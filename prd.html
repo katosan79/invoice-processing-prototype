@@ -461,8 +461,11 @@
         <div class="body">
           <div class="feat"><div class="k">1</div><div><h3>Named exception per row</h3><p>A reason tag — Price, Quantity, Extra items, Items missing, Unmapped item, Total mismatch — plus a sentence of evidence: "GRN confirms 8 received, invoice bills for 12 — S$106 overbilled".</p><span class="why">The customer can act without interpreting anything.</span></div></div>
           <div class="feat"><div class="k">2</div><div><h3>Filter by reason</h3><p>Work one exception type at a time — every price variance in one pass — rather than context-switching down a mixed list.</p><span class="why">Matches how finance teams actually batch work.</span></div></div>
-          <div class="feat"><div class="k">3</div><div><h3>Bulk approve under tolerance</h3><p>Select the ones inside policy and clear them together, with a confirmation that states the count, the total and the tolerance being applied.</p><span class="why">Today's bulk-tolerance logic asks for no confirmation at all.</span></div></div>
-          <div class="feat"><div class="k">4</div><div><h3>Tolerance shown where it bites</h3><p>The active tolerance is printed on the bulk bar with a Change link beside it — visible at the moment it's about to be applied.</p><span class="why">Policy surfaced in context, not buried in settings.</span></div></div>
+          <div class="feat"><div class="k">3</div><div><h3>Bulk resolve — as an explicit override</h3><p>Not "approve everything under tolerance": <b>nothing in this queue is under tolerance</b>, by definition — that's why it's here. So the bulk action is named for what it actually does: "Approve 2 price variances anyway", "Raise 3 credit notes", "Accept 2 as short-shipped".</p><span class="why">Describes the decision honestly instead of implying it's routine.</span></div></div>
+          <div class="feat"><div class="k">4</div><div><h3>One reason at a time</h3><p>The button only enables when the selection shares a single reason, because the right resolution differs per reason — a credit note for over-billing, accepting a short shipment, an override on price. Mixed selections say so and point you at the reason filter.</p><span class="why">Stops one click applying the wrong remedy to half the batch.</span></div></div>
+          <div class="feat"><div class="k">5</div><div><h3>Composition problems can't be bulk-resolved</h3><p>Unmapped items, extra items and item sets that don't match the PO need a per-item judgement or a data fix, so the button stays disabled and says why. If the fix is about <i>money</i> you can decide for a batch; if it's about <i>data</i>, open the invoice.</p><span class="why">Keeps bulk actions to decisions that are genuinely batchable.</span></div></div>
+          <div class="feat"><div class="k">6</div><div><h3>A confirmation with real numbers</h3><p>States the actual count, the actual total, the reason being overridden and the dollar variance being waved through — then records the resolution against each invoice, visible afterwards in Processed under "How it posted".</p><span class="why">Today's bulk-tolerance logic asks for no confirmation at all.</span></div></div>
+          <div class="feat"><div class="k">7</div><div><h3>Tolerance shown as the cause, not the action</h3><p>The bulk bar reads "Fell outside ±2% price · ±1% qty", with a Change link — framing the tolerance as the reason these invoices are in front of you.</p><span class="why">Policy surfaced in context, not buried in settings.</span></div></div>
         </div>
       </div>
     </div>
@@ -581,10 +584,19 @@
    returning reader scans to see what changed since they last looked.
    ════════════════════════════════════════════════════════════════════ */
 const DECK = {
-  version: '0.1',
+  version: '0.2',
   updated: '15 September 2026',
   status: 'Draft — for internal review',
   changelog: [
+    {
+      v: '0.2',
+      date: '15 Sep 2026',
+      notes: [
+        'Reworked the bulk action on "Needs your input". The old framing — "approve all selected under tolerance" — contradicted the queue it sat on: nothing in that list is within tolerance, that is precisely why it is there.',
+        'Bulk resolution is now described as an explicit override, named for the resolution it applies, scoped to one reason at a time, and blocked for composition problems that need a per-item decision.',
+        'Prototype updated to match: the checkboxes were previously inert.',
+      ],
+    },
     {
       v: '0.1',
       date: '15 Sep 2026',
