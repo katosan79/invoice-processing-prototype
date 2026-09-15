@@ -324,8 +324,14 @@
      Read-only and visually recessive so the editable cells stay dominant. */
   .linetable th.ref-head{ color:var(--text-soft); font-weight:600; }
   .linetable td.li-ref{ text-align:right; font-variant-numeric:tabular-nums; color:var(--text-soft); font-size:12px; padding-right:14px; }
-  .linetable td.li-ref.ref-off{ color:var(--rosetext); font-weight:700; }
-  .linetable td.li-ref.ref-warn{ color:var(--suntext); font-weight:700; }
+  /* Out-of-tolerance reference values get the same bg+text pairing every
+     other flagged state in the app uses (status pills, badges) — plain
+     colored text on its own read as an unfinished, half-styled cell next
+     to a fully chip-badged Match pill in the same row. */
+  .linetable td.li-ref.ref-off,
+  .linetable td.li-ref.ref-warn{ font-weight:700; background-clip:padding-box; }
+  .linetable td.li-ref.ref-off{ color:var(--rosetext); background:var(--rosebg); }
+  .linetable td.li-ref.ref-warn{ color:var(--suntext); background:var(--sunbg); }
   .grn-field{ font-size:13px; }
   .grn-ref{ display:inline-flex; align-items:center; gap:6px; font-weight:700; color:var(--text); }
   .grn-sub{ color:var(--text-soft); font-size:11.5px; margin-top:3px; }
