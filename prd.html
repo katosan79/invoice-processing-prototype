@@ -517,7 +517,7 @@
       <h2 class="reveal">Supporting surfaces.</h2>
       <p class="lede reveal">Smaller flows that the four screens lean on.</p>
       <div class="grid g2">
-        <div class="card reveal"><div class="ico"><i class="ti ti-upload"></i></div><h3>Upload</h3><p>One modal for every source. Outlet selected up front, multi-page capture made explicit, and a note that the same duplicate check applies however the invoice arrived.</p></div>
+        <div class="card reveal"><div class="ico"><i class="ti ti-upload"></i></div><h3>Upload</h3><p>One modal for every source, sized for a whole batch landing at once. Every dropped file gets a readability check inline; the default is one invoice per file, with an explicit "combine into one invoice" step for the files that are actually pages of the same document.</p></div>
         <div class="card reveal"><div class="ico"><i class="ti ti-adjustments-horizontal"></i></div><h3>Matching settings</h3><p>3-way vs 2-way, with the control trade-off stated in the modal rather than assumed knowledge. Saving re-evaluates the queue immediately.</p></div>
         <div class="card reveal"><div class="ico"><i class="ti ti-percentage"></i></div><h3>Tolerance settings</h3><p>Price and quantity thresholds with plain-language explanations of what each one lets through, reachable from the queue it governs.</p></div>
         <div class="card reveal"><div class="ico"><i class="ti ti-trash"></i></div><h3>Delete upload</h3><p>Reason required, downstream warning if a PO is linked, retained for audit and recoverable by a controller.</p></div>
@@ -587,10 +587,19 @@
    returning reader scans to see what changed since they last looked.
    ════════════════════════════════════════════════════════════════════ */
 const DECK = {
-  version: '0.6',
-  updated: '15 September 2026',
+  version: '0.7',
+  updated: '16 September 2026',
   status: 'Draft — for internal review',
   changelog: [
+    {
+      v: '0.7',
+      date: '16 Sep 2026',
+      notes: [
+        'Upload now accepts a whole batch of files at once instead of building one invoice page-by-page. Each file becomes its own invoice by default; the uploader ticks files that are actually pages of the same document and combines them explicitly (or splits a combined group back apart) — nothing is inferred from filenames or run through OCR to guess.',
+        'Each file gets a lightweight readability check the moment it\'s added, surfaced inline as a status pill rather than after the fact.',
+        'Subtotal and GST are now directly editable on the invoice detail screen, with the total recomputed from the edited figures — added because OCR\'d totals are routinely off by a few cents and forcing a full re-upload for that was disproportionate. Edits are audit-logged like every other correction.',
+      ],
+    },
     {
       v: '0.6',
       date: '15 Sep 2026',
