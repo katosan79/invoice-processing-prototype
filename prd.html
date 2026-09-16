@@ -537,7 +537,7 @@
         <div><i class="ti ti-circle-x"></i><span><b>Not an accounting integration change.</b> Export behaviour and the supported targets are unchanged.</span></div>
         <div><i class="ti ti-circle-x"></i><span><b>Not removing CS entirely.</b> The goal is that CS handles genuine escalations, not routine variance review.</span></div>
         <div><i class="ti ti-circle-x"></i><span><b>Not a mobile app.</b> Capture on mobile already works, and the Invoices review flow now reflows down to phone width (a hamburger drawer replaces the sidebar; the two-column detail screen stacks) — but this is a responsive web pass on the existing screens, not a native app or a mobile-specific redesign.</span></div>
-        <div><i class="ti ti-circle-x"></i><span><b>Not wired to a cloud OCR service.</b> The per-file "readable" check on upload is a file-size heuristic only (small non-PDF photos are flagged), not a real quality read — deliberately, so we're not taking on a per-page vendor cost and API dependency at prototype stage. Swapping in a real OCR-based check later doesn't change the UX, only what runs behind it.</span></div>
+        <div><i class="ti ti-circle-x"></i><span><b>Not wired to a cloud OCR service.</b> The per-file "readable" check on upload decodes the actual photo client-side and flags it below a pixel-dimension floor — a real check, but on resolution, not on whether the text is actually legible or what it says. Deliberately short of a real quality read, so we're not taking on a per-page vendor cost and API dependency at prototype stage. Swapping in a real OCR-based check later doesn't change the UX, only what runs behind it.</span></div>
       </div>
     </div>
   </section>
@@ -588,10 +588,17 @@
    returning reader scans to see what changed since they last looked.
    ════════════════════════════════════════════════════════════════════ */
 const DECK = {
-  version: '0.8',
+  version: '0.9',
   updated: '16 September 2026',
   status: 'Draft — for internal review',
   changelog: [
+    {
+      v: '0.9',
+      date: '16 Sep 2026',
+      notes: [
+        'Upgraded the readability check from a file-size proxy to a real client-side decode: dropped photos are read for their actual pixel dimensions (via the browser\'s image decoder) and flagged below a resolution floor, with the flag now naming the actual dimensions ("Low resolution (480×360)"). Still not OCR and still no network call — see the non-goal below.',
+      ],
+    },
     {
       v: '0.8',
       date: '16 Sep 2026',

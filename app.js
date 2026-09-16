@@ -2066,34 +2066,59 @@
   });
   document.getElementById('addPageBtn').addEventListener('click', () => filein.click());
 
-  // Mock readability check — this prototype has no real OCR, so this is a
-  // stand-in heuristic (small photo file size) to demo the "flag before you
-  // commit" UX. A real backend would run this off the decoded image.
-  function mockReadabilityCheck(file){
-    if (!file.isPdf && file.sizeBytes && file.sizeBytes < 0.6 * 1024 * 1024) {
-      return { status: 'warn', warnReason: 'Low resolution — check before continuing' };
+  // Real client-side readability check — still no OCR, no cloud service,
+  // no network call. For a genuine File/Blob (drag-drop or the file
+  // picker), decode it in the browser with createImageBitmap() and read
+  // its actual pixel dimensions; below MIN_MEGAPIXELS, a document photo is
+  // typically illegible regardless of file size. A corrupt/unreadable
+  // image is flagged the same way rather than silently passing.
+  const MIN_MEGAPIXELS = 0.9; // ~900×1000px — a rough floor for a legible full-page scan
+  function readabilityFromDimensions(w, h){
+    return (w * h) / 1e6 < MIN_MEGAPIXELS
+      ? { status: 'warn', warnReason: `Low resolution (${w}×${h}) — check before continuing` }
+      : { status: 'ok', warnReason: null };
+  }
+  async function checkImageReadability(file){
+    if (typeof Blob !== 'undefined' && file instanceof Blob) {
+      try {
+        const bitmap = await createImageBitmap(file);
+        const result = readabilityFromDimensions(bitmap.width, bitmap.height);
+        if (bitmap.close) bitmap.close();
+        return result;
+      } catch (e) {
+        return { status: 'warn', warnReason: "Couldn't read this image — check before continuing" };
+      }
     }
+    // loadSampleFiles() below hands us plain descriptor objects, not real
+    // image data, so there's nothing to decode — use their declared
+    // dimensions instead.
+    if (file.width && file.height) return readabilityFromDimensions(file.width, file.height);
     return { status: 'ok', warnReason: null };
   }
 
   function addFile(file){
     const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
-    const entry = { id: fileIdSeq++, name: file.name, isPdf, sizeBytes: file.size, mb: (file.size/1024/1024).toFixed(1) };
-    Object.assign(entry, mockReadabilityCheck(entry));
+    const entry = { id: fileIdSeq++, name: file.name, isPdf, sizeBytes: file.size, mb: (file.size/1024/1024).toFixed(1), status: isPdf ? 'ok' : 'checking', warnReason: null };
     pendingFiles.push(entry);
     groups.push({ id: groupIdSeq++, fileIds: [entry.id] });
     renderUploadState();
+    if (isPdf) return; // no dimensions to check — a PDF's page images aren't decoded client-side here
+    checkImageReadability(file).then(result => {
+      const stillThere = fileById(entry.id); // may have been removed while decoding
+      if (stillThere) { Object.assign(stillThere, result); renderUploadState(); }
+    });
   }
 
-  // Convenience for demoing this flow without hunting for real files —
-  // these are plain descriptor objects (name/size/type only), not real
-  // File objects, but addFile only ever reads those three properties.
+  // Convenience for demoing this flow without hunting for real files — these
+  // are plain descriptor objects (name/size/type/width/height), not real
+  // File objects, so checkImageReadability() reads the declared width/height
+  // directly instead of decoding actual image bytes.
   function loadSampleFiles(){
     [
       { name: 'Harbour Meats - INV-5512.pdf', size: 1.8*1024*1024, type: 'application/pdf' },
-      { name: 'IMG_2291.jpg', size: 3.2*1024*1024, type: 'image/jpeg' },
-      { name: 'IMG_2292.jpg', size: 2.9*1024*1024, type: 'image/jpeg' },
-      { name: 'scan0087.jpg', size: 0.4*1024*1024, type: 'image/jpeg' },
+      { name: 'IMG_2291.jpg', size: 3.2*1024*1024, type: 'image/jpeg', width: 1600, height: 2133 },
+      { name: 'IMG_2292.jpg', size: 2.9*1024*1024, type: 'image/jpeg', width: 1600, height: 2133 },
+      { name: 'scan0087.jpg', size: 0.4*1024*1024, type: 'image/jpeg', width: 480, height: 360 },
     ].forEach(addFile);
   }
 
@@ -2143,7 +2168,7 @@
         <span class="ic">${f.isPdf ? '<i class="ti ti-file-text"></i>' : '<i class="ti ti-photo"></i>'}</span>
         <span class="nm">${escapeHtml(f.name)}</span>
         <span class="sz">${f.mb} MB</span>
-        <span class="status ${f.status === 'warn' ? 'status-warn' : 'status-ok'}"><span class="dot"></span>${f.status === 'warn' ? f.warnReason : 'Readable'}</span>
+        <span class="status ${f.status === 'warn' ? 'status-warn' : f.status === 'checking' ? 'status-info' : 'status-ok'}"><span class="dot"></span>${f.status === 'warn' ? f.warnReason : f.status === 'checking' ? 'Checking…' : 'Readable'}</span>
         <button class="rm" onclick="removeFile(${f.id})">✕</button>
       </div>`).join('');
     document.getElementById('zoneLabel').textContent = pendingFiles.length ? 'Drop more files here, or click to browse' : 'Drag and drop files here or click to upload';
