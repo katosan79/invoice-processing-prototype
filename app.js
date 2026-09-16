@@ -2025,16 +2025,27 @@
     document.getElementById('del-confirm-btn').disabled = !this.value;
   });
 
-  /* ══════════ upload invoice modal — matches the real product's simple
+  /* ══════════ upload invoices modal — matches the real product's simple
      modal interaction (not a multi-step wizard); fixes layered on top:
-     raised size cap + explicit multi-page capture. ══════════ */
-  let pages = [];
+     raised size cap + batch multi-file drop + explicit invoice grouping.
+
+     Data model:
+       pendingFiles: [{ id, name, isPdf, mb, status:'ok'|'warn', warnReason }]
+       groups:       [{ id, fileIds:[...] }]   — one group = one resulting invoice
+       groupSelection: Set<fileId>             — checked in the grouping picker
+     Every file starts as its own group (1 file : 1 invoice); "Combine
+     selected into one invoice" merges checked files' groups into one,
+     in file order, so multi-page invoices reconstruct correctly. ══════════ */
+  let pendingFiles = [];
+  let groups = [];
+  let groupSelection = new Set();
+  let fileIdSeq = 1, groupIdSeq = 1;
 
   function openUploadModal(){
-    pages = [];
+    pendingFiles = []; groups = []; groupSelection = new Set();
     document.getElementById('outlet').value = '';
     document.getElementById('filein').value = '';
-    renderPages();
+    renderUploadState();
     document.getElementById('upload-modal').classList.add('on');
   }
   function closeUploadModal(){
@@ -2047,50 +2058,146 @@
   zone.addEventListener('dragleave', () => zone.classList.remove('over'));
   zone.addEventListener('drop', e => {
     e.preventDefault(); zone.classList.remove('over');
-    const f = e.dataTransfer.files[0];
-    if (f) addPage(f);
+    Array.from(e.dataTransfer.files).forEach(addFile);
   });
   filein.addEventListener('change', e => {
-    const f = e.target.files[0];
-    if (f) addPage(f);
+    Array.from(e.target.files).forEach(addFile);
     e.target.value = '';
   });
   document.getElementById('addPageBtn').addEventListener('click', () => filein.click());
 
-  function addPage(file){
-    const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
-    pages.push({ name: file.name, isPdf, mb: (file.size/1024/1024).toFixed(1) });
-    renderPages();
+  // Mock readability check — this prototype has no real OCR, so this is a
+  // stand-in heuristic (small photo file size) to demo the "flag before you
+  // commit" UX. A real backend would run this off the decoded image.
+  function mockReadabilityCheck(file){
+    if (!file.isPdf && file.sizeBytes && file.sizeBytes < 0.6 * 1024 * 1024) {
+      return { status: 'warn', warnReason: 'Low resolution — check before continuing' };
+    }
+    return { status: 'ok', warnReason: null };
   }
-  function removePage(i){ pages.splice(i,1); renderPages(); }
 
-  function renderPages(){
-    document.getElementById('pagesWrap').style.display = pages.length ? '' : 'none';
-    document.getElementById('pageCount').textContent = pages.length;
-    document.getElementById('pageList').innerHTML = pages.map((p,i) => `
+  function addFile(file){
+    const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+    const entry = { id: fileIdSeq++, name: file.name, isPdf, sizeBytes: file.size, mb: (file.size/1024/1024).toFixed(1) };
+    Object.assign(entry, mockReadabilityCheck(entry));
+    pendingFiles.push(entry);
+    groups.push({ id: groupIdSeq++, fileIds: [entry.id] });
+    renderUploadState();
+  }
+
+  // Convenience for demoing this flow without hunting for real files —
+  // these are plain descriptor objects (name/size/type only), not real
+  // File objects, but addFile only ever reads those three properties.
+  function loadSampleFiles(){
+    [
+      { name: 'Harbour Meats - INV-5512.pdf', size: 1.8*1024*1024, type: 'application/pdf' },
+      { name: 'IMG_2291.jpg', size: 3.2*1024*1024, type: 'image/jpeg' },
+      { name: 'IMG_2292.jpg', size: 2.9*1024*1024, type: 'image/jpeg' },
+      { name: 'scan0087.jpg', size: 0.4*1024*1024, type: 'image/jpeg' },
+    ].forEach(addFile);
+  }
+
+  function removeFile(fileId){
+    pendingFiles = pendingFiles.filter(f => f.id !== fileId);
+    groups = groups
+      .map(g => ({ ...g, fileIds: g.fileIds.filter(id => id !== fileId) }))
+      .filter(g => g.fileIds.length);
+    groupSelection.delete(fileId);
+    renderUploadState();
+  }
+
+  function toggleGroupSelect(fileId){
+    if (groupSelection.has(fileId)) groupSelection.delete(fileId);
+    else groupSelection.add(fileId);
+    renderUploadState();
+  }
+
+  function combineSelected(){
+    if (groupSelection.size < 2) return;
+    // preserve original file order, not selection-click order
+    const orderedIds = pendingFiles.map(f => f.id).filter(id => groupSelection.has(id));
+    groups = groups
+      .map(g => ({ ...g, fileIds: g.fileIds.filter(id => !groupSelection.has(id)) }))
+      .filter(g => g.fileIds.length);
+    groups.push({ id: groupIdSeq++, fileIds: orderedIds });
+    groupSelection = new Set();
+    renderUploadState();
+  }
+
+  function splitGroup(groupId){
+    const g = groups.find(g => g.id === groupId);
+    if (!g) return;
+    const rest = groups.filter(g => g.id !== groupId);
+    const singles = g.fileIds.map(id => ({ id: groupIdSeq++, fileIds: [id] }));
+    groups = rest.concat(singles);
+    renderUploadState();
+  }
+
+  function fileById(id){ return pendingFiles.find(f => f.id === id); }
+
+  function renderUploadState(){
+    document.getElementById('pagesWrap').style.display = pendingFiles.length ? '' : 'none';
+    document.getElementById('pageCount').textContent = pendingFiles.length;
+    document.getElementById('pageList').innerHTML = pendingFiles.map(f => `
       <div class="pageitem">
-        <span class="ic">${p.isPdf ? '<i class="ti ti-file-text"></i>' : '<i class="ti ti-photo"></i>'}</span>
-        <span class="nm">Page ${i+1} · ${p.name}</span>
-        <span class="sz">${p.mb} MB</span>
-        <button class="rm" onclick="removePage(${i})">✕</button>
+        <span class="ic">${f.isPdf ? '<i class="ti ti-file-text"></i>' : '<i class="ti ti-photo"></i>'}</span>
+        <span class="nm">${escapeHtml(f.name)}</span>
+        <span class="sz">${f.mb} MB</span>
+        <span class="status ${f.status === 'warn' ? 'status-warn' : 'status-ok'}"><span class="dot"></span>${f.status === 'warn' ? f.warnReason : 'Readable'}</span>
+        <button class="rm" onclick="removeFile(${f.id})">✕</button>
       </div>`).join('');
-    document.getElementById('zoneLabel').textContent = pages.length ? 'Drop another page here, or click to browse' : 'Drag and drop files here or click to upload';
+    document.getElementById('zoneLabel').textContent = pendingFiles.length ? 'Drop more files here, or click to browse' : 'Drag and drop files here or click to upload';
+
+    const groupWrap = document.getElementById('groupWrap');
+    groupWrap.style.display = pendingFiles.length > 1 ? '' : 'none';
+    if (pendingFiles.length > 1) {
+      document.getElementById('groupPicker').innerHTML = pendingFiles.map(f => {
+        const g = groups.find(g => g.fileIds.includes(f.id));
+        const tag = g.fileIds.length > 1 ? `page ${g.fileIds.indexOf(f.id) + 1} of ${g.fileIds.length}` : 'own invoice';
+        return `
+        <label class="grouppick">
+          <input type="checkbox" ${groupSelection.has(f.id) ? 'checked' : ''} onchange="toggleGroupSelect(${f.id})"/>
+          <span class="nm">${escapeHtml(f.name)}</span>
+          <span class="grouptag">${tag}</span>
+        </label>`;
+      }).join('');
+      document.getElementById('combineBtn').disabled = groupSelection.size < 2;
+
+      document.getElementById('groupResult').innerHTML = groups.map((g, i) => {
+        const files = g.fileIds.map(fileById);
+        const combined = files.length > 1;
+        return `
+        <div class="groupblock">
+          <div class="ghead">
+            <span>Invoice ${i + 1} — ${files.length} file${files.length > 1 ? 's' : ''}${combined ? ', combined' : ''}</span>
+            ${combined ? `<button type="button" class="split" onclick="splitGroup(${g.id})">Split apart</button>` : ''}
+          </div>
+          <div class="gfiles">${files.map((f, pi) => `<div>${escapeHtml(f.name)}${combined ? ` · page ${pi + 1}` : ''}</div>`).join('')}</div>
+        </div>`;
+      }).join('');
+    }
+
+    document.getElementById('finishUploadBtn').textContent = groups.length > 1 ? `Start processing ${groups.length} invoices` : 'Done';
   }
 
   function finishUpload(){
     const outlet = document.getElementById('outlet').value;
     if (!outlet) { toast('Select an outlet first'); return; }
-    if (!pages.length) { toast('Add at least one page'); return; }
-    const seq = 950 + Math.floor(Math.random()*49); // clear of every seeded id (900-904, 876-897)
+    if (!pendingFiles.length) { toast('Add at least one file'); return; }
     const now = new Date();
-    const newInv = {
-      id: 'INV-00' + seq, po: null, poDate: null, supplier: 'Unrecognized supplier', outlet,
-      date: now.toLocaleDateString('en-AU',{day:'numeric',month:'long'}) + ', ' + now.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false}),
-      source: pages.some(p=>p.isPdf) ? 'upload' : 'photo', amount: 0, status: 'pending', by: 'Keith Tan',
-      freshCapture: true, viewed: false, lines: [],
-    };
-    INV.unshift(newInv);
+    const dateStr = now.toLocaleDateString('en-AU',{day:'numeric',month:'long'}) + ', ' + now.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false});
+    const newInvoices = groups.map((g, i) => {
+      const files = g.fileIds.map(fileById);
+      const seq = 950 + ((Math.floor(Math.random()*40)) + i) % 49; // clear of every seeded id (900-904, 876-897)
+      return {
+        id: 'INV-00' + seq, po: null, poDate: null, supplier: 'Unrecognized supplier', outlet,
+        date: dateStr,
+        source: files.some(f => f.isPdf) ? 'upload' : 'photo', amount: 0, status: 'pending', by: 'Keith Tan',
+        freshCapture: true, viewed: false, lines: [], pages: files.length,
+      };
+    });
+    INV.splice(0, 0, ...newInvoices);
     renderUploadsTable();
     closeUploadModal();
-    toast('✓ Successfully uploaded');
+    toast(groups.length > 1 ? `✓ Created ${groups.length} invoices from ${pendingFiles.length} files` : '✓ Successfully uploaded');
   }

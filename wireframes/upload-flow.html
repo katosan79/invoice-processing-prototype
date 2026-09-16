@@ -1,0 +1,701 @@
+<title>Batch Upload Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --paper:#F7F5F0;
+    --surface:#FFFFFF;
+    --ink:#1E1C18;
+    --ink-soft:#716C62;
+    --ink-faint:#A7A196;
+    --line:#DCD6C9;
+    --line-strong:#B9B2A2;
+    --accent:#2F5D50;
+    --accent-soft:#E3ECE7;
+    --accent-ink:#FFFFFF;
+    --wire-fill:#EDEAE2;
+    --wire-fill-2:#E2DDD1;
+    --warn:#8A5A1E;
+    --warn-soft:#F3E6D2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#17160F;
+      --surface:#1F1D16;
+      --ink:#EDE9DF;
+      --ink-soft:#B6AF9F;
+      --ink-faint:#726C5F;
+      --line:#39352A;
+      --line-strong:#4B4636;
+      --accent:#7BAE9B;
+      --accent-soft:#25332C;
+      --accent-ink:#0F1712;
+      --wire-fill:#252217;
+      --wire-fill-2:#2C2819;
+      --warn:#D6A868;
+      --warn-soft:#332A18;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#17160F;
+    --surface:#1F1D16;
+    --ink:#EDE9DF;
+    --ink-soft:#B6AF9F;
+    --ink-faint:#726C5F;
+    --line:#39352A;
+    --line-strong:#4B4636;
+    --accent:#7BAE9B;
+    --accent-soft:#25332C;
+    --accent-ink:#0F1712;
+    --wire-fill:#252217;
+    --wire-fill-2:#2C2819;
+    --warn:#D6A868;
+    --warn-soft:#332A18;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    padding:0 20px;
+    padding-block:32px 64px;
+  }
+  h1,h2,h3{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-weight:600;
+    text-wrap:balance;
+    margin:0;
+  }
+  .mono{font-family:'IBM Plex Mono', 'SFMono-Regular', monospace;}
+
+  .wrap{max-width:920px;margin:0 auto;}
+
+  /* header */
+  header.page{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    padding-bottom:28px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:28px;
+  }
+  .eyebrow{
+    font-size:11.5px;
+    font-weight:600;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--accent);
+  }
+  header.page h1{font-size:clamp(26px,4vw,34px);}
+  header.page p{
+    margin:0;
+    color:var(--ink-soft);
+    font-size:14.5px;
+    max-width:62ch;
+    line-height:1.55;
+  }
+
+  /* step nav */
+  nav.steps{
+    position:sticky;
+    top:env(safe-area-inset-top,0px);
+    z-index:5;
+    display:flex;
+    gap:6px;
+    background:var(--paper);
+    padding-block:10px;
+    margin-bottom:6px;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  nav.steps::-webkit-scrollbar{display:none;}
+  nav.steps a{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:7px 13px;
+    border-radius:99px;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--ink-soft);
+    text-decoration:none;
+    font-size:12.5px;
+    font-weight:500;
+    white-space:nowrap;
+  }
+  nav.steps a span.n{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:16px;height:16px;
+    border-radius:50%;
+    background:var(--wire-fill-2);
+    color:var(--ink-soft);
+    font-size:10px;
+    font-weight:700;
+  }
+  nav.steps a:hover{border-color:var(--line-strong); color:var(--ink);}
+
+  /* step section */
+  section.step{
+    padding-block:44px 8px;
+    border-bottom:1px solid var(--line);
+    scroll-margin-top:56px;
+  }
+  section.step:last-of-type{border-bottom:none;}
+  .step-head{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:6px;
+    flex-wrap:wrap;
+  }
+  .step-num{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-size:15px;
+    font-weight:600;
+    color:var(--accent);
+  }
+  .step-head h2{font-size:21px;}
+  .step-goal{
+    color:var(--ink-soft);
+    font-size:14px;
+    line-height:1.6;
+    max-width:66ch;
+    margin:2px 0 22px;
+  }
+
+  .stage{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:22px;
+  }
+  @media (min-width:760px){
+    .stage{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);}
+  }
+
+  /* --- the wireframe "screen" --- */
+  .screen{
+    background:var(--surface);
+    border:1px solid var(--line-strong);
+    border-radius:10px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.04);
+    overflow:hidden;
+  }
+  .screen .titlebar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:11px 16px;
+    border-bottom:1px solid var(--line);
+    font-size:13px;
+    font-weight:600;
+  }
+  .screen .titlebar .x{
+    width:20px;height:20px;
+    border:1px dashed var(--line-strong);
+    border-radius:5px;
+    color:var(--ink-faint);
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;
+  }
+  .screen .body{padding:16px;}
+
+  .dropzone{
+    border:1.5px dashed var(--line-strong);
+    border-radius:8px;
+    padding:30px 16px;
+    text-align:center;
+    color:var(--ink-soft);
+    background:repeating-linear-gradient(135deg, var(--wire-fill), var(--wire-fill) 6px, transparent 6px, transparent 12px);
+  }
+  .dropzone .icon{
+    width:34px;height:34px;
+    margin:0 auto 10px;
+    border:1.5px solid var(--line-strong);
+    border-radius:7px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;
+    background:var(--surface);
+  }
+  .dropzone .t1{font-weight:600; font-size:13.5px; color:var(--ink);}
+  .dropzone .t2{font-size:11.5px; margin-top:3px;}
+
+  .filerow{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 4px;
+    border-bottom:1px solid var(--line);
+    font-size:12.5px;
+  }
+  .filerow:last-child{border-bottom:none;}
+  .filerow .thumb{
+    width:30px;height:30px;
+    flex:0 0 auto;
+    border-radius:5px;
+    background:var(--wire-fill-2);
+    border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;
+  }
+  .filerow .name{font-weight:600;}
+  .filerow .meta{color:var(--ink-faint); font-size:11px;}
+  .filerow .grow{flex:1; min-width:0;}
+  .filerow .name-line{display:flex; gap:8px; align-items:baseline; flex-wrap:wrap;}
+
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:2px 8px;
+    border-radius:99px;
+    font-size:10.5px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .chip.ok{background:var(--accent-soft); color:var(--accent);}
+  .chip.warn{background:var(--warn-soft); color:var(--warn);}
+  .chip.wire{background:var(--wire-fill-2); color:var(--ink-soft);}
+
+  .rm{
+    width:22px;height:22px;
+    border:1px solid var(--line-strong);
+    border-radius:5px;
+    color:var(--ink-faint);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;
+    flex:0 0 auto;
+  }
+
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:8px 14px;
+    border-radius:7px;
+    font-size:13px;
+    font-weight:600;
+    border:1px solid var(--line-strong);
+    background:var(--surface);
+    color:var(--ink);
+    cursor:default;
+  }
+  .btn.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--accent-ink);
+  }
+  .btn.ghost{
+    background:transparent;
+    border-style:dashed;
+    color:var(--ink-soft);
+  }
+  .btn.block{width:100%;}
+  .btn.sm{padding:5px 10px; font-size:11.5px;}
+
+  .footbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding-top:14px;
+    margin-top:14px;
+    border-top:1px solid var(--line);
+  }
+  .footbar .count{font-size:12px; color:var(--ink-soft);}
+
+  .group-block{
+    border:1px solid var(--line-strong);
+    border-radius:8px;
+    margin-bottom:10px;
+    overflow:hidden;
+  }
+  .group-block .ghead{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    padding:8px 10px;
+    background:var(--wire-fill);
+    font-size:11.5px;
+    font-weight:600;
+  }
+  .group-block .gbody{padding:2px 10px;}
+
+  .radio-opt{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    margin-bottom:8px;
+  }
+  .radio-opt.selected{
+    border-color:var(--accent);
+    background:var(--accent-soft);
+  }
+  .radio-opt .dot{
+    width:15px;height:15px;
+    border-radius:50%;
+    border:1.5px solid var(--line-strong);
+    flex:0 0 auto;
+    margin-top:2px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .radio-opt.selected .dot{border-color:var(--accent);}
+  .radio-opt.selected .dot::after{
+    content:"";
+    width:7px;height:7px;
+    border-radius:50%;
+    background:var(--accent);
+  }
+  .radio-opt .rt{font-weight:600; font-size:13px;}
+  .radio-opt .rs{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .summary-line{
+    display:flex;
+    justify-content:space-between;
+    padding:7px 0;
+    border-bottom:1px solid var(--line);
+    font-size:12.5px;
+  }
+  .summary-line:last-child{border-bottom:none;}
+  .summary-line .k{color:var(--ink-soft);}
+  .summary-line .v{font-weight:600;}
+
+  /* annotation column */
+  .notes{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .note{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+  }
+  .note .marker{
+    flex:0 0 auto;
+    width:20px;height:20px;
+    border-radius:50%;
+    background:var(--accent);
+    color:var(--accent-ink);
+    font-size:11px;
+    font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    margin-top:1px;
+  }
+  .note p{margin:0; font-size:13px; line-height:1.55; color:var(--ink);}
+  .note .src{
+    display:block;
+    margin-top:3px;
+    font-size:11px;
+    color:var(--ink-faint);
+  }
+
+  .callout{
+    background:var(--wire-fill);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    line-height:1.55;
+  }
+  .callout b{color:var(--ink); font-weight:600;}
+
+  footer.page{
+    margin-top:36px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-size:12px;
+    color:var(--ink-faint);
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  @media (max-width:520px){
+    body{padding:0 16px; padding-block:24px 48px;}
+    .step-head{gap:10px;}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="page">
+    <span class="eyebrow">Wireframes · v1</span>
+    <h1>Batch invoice upload</h1>
+    <p>A redesigned upload flow for dropping several invoice files at once — modelled on how Ramp-style fintech tools and document platforms (AWS S3, PandaDoc, Whop) handle bulk file intake. Four screens: drop, review, group, confirm.</p>
+  </header>
+
+  <nav class="steps">
+    <a href="#step1"><span class="n">1</span> Drop files</a>
+    <a href="#step2"><span class="n">2</span> Review batch</a>
+    <a href="#step3"><span class="n">3</span> Group into invoices</a>
+    <a href="#step4"><span class="n">4</span> Confirm &amp; process</a>
+  </nav>
+
+  <!-- ============ STEP 1 ============ -->
+  <section class="step" id="step1">
+    <div class="step-head">
+      <span class="step-num">01</span>
+      <h2>Drop files</h2>
+    </div>
+    <p class="step-goal">Entry point is unchanged in spirit from today's modal — but the copy and drop target now assume a whole batch lands at once, not one photo.</p>
+
+    <div class="stage">
+      <div class="screen">
+        <div class="titlebar">Upload invoices <span class="x">✕</span></div>
+        <div class="body">
+          <div class="dropzone">
+            <div class="icon">⇪</div>
+            <div class="t1">Drag invoices here, or click to browse</div>
+            <div class="t2">JPG, PNG or PDF · up to 15MB each · select as many as you like</div>
+          </div>
+          <div class="footbar">
+            <span class="count">No files yet</span>
+            <span class="btn ghost sm">Browse files</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <div class="marker">1</div>
+          <p>Copy shifts from "add a page" to <b>"select as many as you like"</b> — sets the expectation that this is a multi-file, one-shot drop, not a one-at-a-time queue.<span class="src">cf. AWS S3, Mercury, Navan drop zones</span></p>
+        </div>
+        <div class="note">
+          <div class="marker">2</div>
+          <p>No outlet/metadata fields on this first screen. Keep the very first action to zero friction — <b>ask for context after</b> the system knows what was dropped.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2 ============ -->
+  <section class="step" id="step2">
+    <div class="step-head">
+      <span class="step-num">02</span>
+      <h2>Review the batch</h2>
+    </div>
+    <p class="step-goal">Every dropped file becomes its own row immediately — visible, removable, correctable — before anything is sent for processing.</p>
+
+    <div class="stage">
+      <div class="screen">
+        <div class="titlebar">4 files added <span class="x">✕</span></div>
+        <div class="body">
+
+          <div class="filerow">
+            <div class="thumb">🧾</div>
+            <div class="grow">
+              <div class="name-line"><span class="name">Harbour&nbsp;Meats&nbsp;-&nbsp;INV-5512.pdf</span><span class="chip ok">Readable</span></div>
+              <div class="meta">1.8 MB · PDF</div>
+            </div>
+            <div class="rm">✕</div>
+          </div>
+
+          <div class="filerow">
+            <div class="thumb">🖼️</div>
+            <div class="grow">
+              <div class="name-line"><span class="name">IMG_2291.jpg</span><span class="chip ok">Readable</span></div>
+              <div class="meta">3.2 MB · Photo</div>
+            </div>
+            <div class="rm">✕</div>
+          </div>
+
+          <div class="filerow">
+            <div class="thumb">🖼️</div>
+            <div class="grow">
+              <div class="name-line"><span class="name">IMG_2292.jpg</span><span class="chip ok">Readable</span></div>
+              <div class="meta">2.9 MB · Photo</div>
+            </div>
+            <div class="rm">✕</div>
+          </div>
+
+          <div class="filerow">
+            <div class="thumb">⚠️</div>
+            <div class="grow">
+              <div class="name-line"><span class="name">scan0087.jpg</span><span class="chip warn">Blurry — retake?</span></div>
+              <div class="meta">0.4 MB · Photo</div>
+            </div>
+            <div class="rm">✕</div>
+          </div>
+
+          <div class="footbar">
+            <span class="count">4 files · 1 needs attention</span>
+            <span class="btn ghost sm">+ Add more files</span>
+          </div>
+          <div style="margin-top:12px;">
+            <span class="btn primary block">Continue →</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <div class="marker">1</div>
+          <p>Per-file <b>readability check runs immediately</b> on drop (blur/resolution/corrupt-file), not after upload — flags problem files while the user still has the originals on hand to retake.<span class="src">cf. Whop's "needs cropping" pre-flight validation</span></p>
+        </div>
+        <div class="note">
+          <div class="marker">2</div>
+          <p>Continue button stays enabled even with a flagged file — it's a nudge, not a blocker. The user decides whether "blurry" is good enough.</p>
+        </div>
+        <div class="note">
+          <div class="marker">3</div>
+          <p>"4 files added" in the title bar answers the exact feedback ask: <b>confirm what landed</b> before anything moves further.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3 ============ -->
+  <section class="step" id="step3">
+    <div class="step-head">
+      <span class="step-num">03</span>
+      <h2>Group into invoices</h2>
+    </div>
+    <p class="step-goal">The one question no off-the-shelf pattern answers: do these 4 files make 4 invoices, or fewer? Default to the simple case, let the user correct it.</p>
+
+    <div class="stage">
+      <div class="screen">
+        <div class="titlebar">How do these files split up? <span class="x">✕</span></div>
+        <div class="body">
+
+          <div class="radio-opt selected">
+            <div class="dot"></div>
+            <div>
+              <div class="rt">Each file is its own invoice</div>
+              <div class="rs">4 files → 4 invoices. Fastest option — pick this if none of these are pages of the same document.</div>
+            </div>
+          </div>
+          <div class="radio-opt">
+            <div class="dot"></div>
+            <div>
+              <div class="rt">Some of these belong together</div>
+              <div class="rs">Select files below that are pages of the same invoice, then combine them.</div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--line);">
+            <div style="font-size:11.5px; font-weight:600; color:var(--ink-soft); margin-bottom:8px;">SELECTED FOR GROUPING (2)</div>
+
+            <div class="filerow" style="border:1px solid var(--accent); border-radius:7px; padding-left:8px; margin-bottom:6px;">
+              <div class="thumb" style="background:var(--accent-soft); border-color:var(--accent); color:var(--accent);">✓</div>
+              <div class="grow"><span class="name">IMG_2291.jpg</span><div class="meta">Page order: 1</div></div>
+            </div>
+            <div class="filerow" style="border:1px solid var(--accent); border-radius:7px; padding-left:8px;">
+              <div class="thumb" style="background:var(--accent-soft); border-color:var(--accent); color:var(--accent);">✓</div>
+              <div class="grow"><span class="name">IMG_2292.jpg</span><div class="meta">Page order: 2</div></div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <span class="btn primary sm">Combine as one invoice</span>
+            </div>
+          </div>
+
+          <div class="footbar">
+            <span class="count">Will create 3 invoices</span>
+            <span class="btn primary sm">Continue →</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <div class="marker">1</div>
+          <p><b>Default = 1 file : 1 invoice.</b> Matches every bulk-upload pattern seen across fintech/document tools and needs zero input for the common case — a multi-invoice drop of separate PDFs.</p>
+        </div>
+        <div class="note">
+          <div class="marker">2</div>
+          <p>Multi-page invoices are the exception, handled by explicit user action — <b>select 2+ files, then "Combine"</b> — rather than guessing from filenames or running OCR to detect continuation. No pattern in the research auto-detects this reliably; asking is cheap, a wrong guess is not.</p>
+        </div>
+        <div class="note">
+          <div class="marker">3</div>
+          <p>Selecting files shows a lightweight <b>page-order</b> hint (order = drop order by default, editable by drag) so multi-page invoices reconstruct in the right sequence.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 4 ============ -->
+  <section class="step" id="step4">
+    <div class="step-head">
+      <span class="step-num">04</span>
+      <h2>Confirm &amp; process</h2>
+    </div>
+    <p class="step-goal">One last plain-language summary before anything is sent to OCR — this is the commit point, and the only step that requires an explicit "go".</p>
+
+    <div class="stage">
+      <div class="screen">
+        <div class="titlebar">Ready to process <span class="x">✕</span></div>
+        <div class="body">
+
+          <div class="callout" style="margin-bottom:14px;">
+            <b>3 invoices</b> will be created from <b>4 files</b>. Each will be scanned and matched automatically — you'll review any that need attention in the Uploads tab.
+          </div>
+
+          <div class="group-block">
+            <div class="ghead"><span>Invoice 1</span><span class="chip wire">1 file</span></div>
+            <div class="gbody">
+              <div class="filerow"><div class="thumb">🧾</div><div class="grow name">Harbour&nbsp;Meats&nbsp;-&nbsp;INV-5512.pdf</div></div>
+            </div>
+          </div>
+
+          <div class="group-block">
+            <div class="ghead"><span>Invoice 2</span><span class="chip wire">2 files, combined</span></div>
+            <div class="gbody">
+              <div class="filerow"><div class="thumb">🖼️</div><div class="grow name">IMG_2291.jpg <span class="meta">· page 1</span></div></div>
+              <div class="filerow"><div class="thumb">🖼️</div><div class="grow name">IMG_2292.jpg <span class="meta">· page 2</span></div></div>
+            </div>
+          </div>
+
+          <div class="group-block">
+            <div class="ghead"><span>Invoice 3</span><span class="chip wire">1 file</span></div>
+            <div class="gbody">
+              <div class="filerow"><div class="thumb">⚠️</div><div class="grow name">scan0087.jpg <span class="meta">· flagged as blurry</span></div></div>
+            </div>
+          </div>
+
+          <div style="margin-top:4px;">
+            <div class="summary-line"><span class="k">Outlet</span><span class="v">Bondi Beach</span></div>
+            <div class="summary-line"><span class="k">Uploaded by</span><span class="v">Keith Tan</span></div>
+          </div>
+
+          <div class="footbar">
+            <span class="btn ghost sm">← Back</span>
+            <span class="btn primary">Start processing 3 invoices</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <div class="marker">1</div>
+          <p>Grouping from step 3 is restated in plain language — <b>"3 invoices from 4 files"</b> — so the last thing the user sees before committing matches their mental model, not the file system's.</p>
+        </div>
+        <div class="note">
+          <div class="marker">2</div>
+          <p>The flagged file from step 2 resurfaces here rather than being silently dropped — nothing the user was warned about disappears without their decision.</p>
+        </div>
+        <div class="note">
+          <div class="marker">3</div>
+          <p>This is the single explicit <b>confirmation gate</b> the request asked for — one commit action, after which files land in Uploads with per-invoice OCR status (processing → matched / needs review), each in its own row rather than one aggregate spinner.<span class="src">cf. PandaDoc, StackAI per-item processing status</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="page">
+    <span>Wireframes — not wired to app.js yet</span>
+    <span>invoice-processing-prototype</span>
+  </footer>
+
+</div>

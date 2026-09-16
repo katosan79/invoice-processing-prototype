@@ -294,8 +294,8 @@
        (a simple modal, not a full-page wizard); fixes applied on top:
        raised size cap + explicit multi-page capture. ═══ -->
   <div class="modal-bg" id="upload-modal">
-    <div class="modal" style="width:460px;">
-      <h4 id="upload-modal-title">Upload invoice</h4>
+    <div class="modal" style="width:480px;max-height:86vh;overflow-y:auto;">
+      <h4 id="upload-modal-title">Upload invoices</h4>
       <div class="fld" style="max-width:none;margin-top:10px;">
         <label>Outlet</label>
         <select id="outlet">
@@ -309,25 +309,40 @@
       </div>
 
       <div class="zone" id="zone" style="margin-top:16px;">
-        <input type="file" id="filein" accept="image/*,application/pdf"/>
+        <input type="file" id="filein" accept="image/*,application/pdf" multiple/>
         <div class="glyph"><i class="ti ti-camera"></i></div>
         <div class="t1" id="zoneLabel">Drag and drop files here or click to upload</div>
-        <div class="t2">JPG, PNG or PDF · up to 15MB — large photos are compressed automatically</div>
+        <div class="t2">JPG, PNG or PDF · up to 15MB each · select as many as you like</div>
+      </div>
+      <div style="text-align:center;margin-top:8px;">
+        <button type="button" class="addpage" id="loadSampleBtn" onclick="loadSampleFiles()">Or load sample files, to preview this flow</button>
       </div>
 
       <div id="pagesWrap" style="display:none;">
         <div class="pagebar">
-          <span class="lab">Pages added (<span id="pageCount">0</span>)</span>
-          <button class="addpage" id="addPageBtn">+ Add another page</button>
+          <span class="lab">Files added (<span id="pageCount">0</span>)</span>
+          <button class="addpage" id="addPageBtn">+ Add more files</button>
         </div>
         <div class="pagelist" id="pageList"></div>
+      </div>
+
+      <div id="groupWrap" style="display:none;margin-top:20px;">
+        <div class="pagebar">
+          <span class="lab">How do these files split up?</span>
+        </div>
+        <p style="font-size:12px;color:var(--text-soft);margin:6px 0 10px;line-height:1.5;">By default, each file becomes its own invoice. If two or more files are pages of the <em>same</em> invoice, tick them below and combine them.</p>
+        <div class="pagelist" id="groupPicker"></div>
+        <div style="margin-top:10px;">
+          <button type="button" class="btn btn-ghost" id="combineBtn" onclick="combineSelected()" disabled>Combine selected into one invoice</button>
+        </div>
+        <div id="groupResult" style="margin-top:14px;"></div>
       </div>
 
       <div class="footnote"><span class="dot"><i class="ti ti-check"></i></span><span>Every invoice gets the same duplicate check, whether it's a photo, a PDF, an email attachment, or PEPPOL.</span></div>
 
       <div class="row2">
         <button class="btn btn-ghost" onclick="closeUploadModal()">Cancel</button>
-        <button class="btn btn-go" onclick="finishUpload()">Done</button>
+        <button class="btn btn-go" id="finishUploadBtn" onclick="finishUpload()">Done</button>
       </div>
     </div>
   </div>
