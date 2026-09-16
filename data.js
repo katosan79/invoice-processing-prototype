@@ -207,3 +207,42 @@
         {name:'Chicken Wings 1kg', sku:'HM-CHW-1KG', uom:'kg', poPrice:8.20, qty:8, grn:8},
       ] },
   ];
+
+  /* ── Market list — the org's own reference catalog of known items and
+     their standing price, independent of any one PO. What an "unmapped
+     item" line (app.js: computeOutcome(), l.unmapped) is checked against —
+     an item not in here is a data problem regardless of matching policy,
+     3-way, 2-way or none. Seeded here from every sku already referenced
+     across INV/PO_CATALOG above, so nothing already "mapped" looks newly
+     unfamiliar; the two demo items deliberately left unmapped (Cinnamon
+     Scrolls 4-pack on INV-00907, Heirloom Carrot Bunch on INV-00910) are
+     the ones meant to be added via mapUnmappedItem() (app.js).
+     acceptPriceIntoMarketList() (app.js) is what moves `price` forward
+     when a person accepts a supplier's new price going forward, rather
+     than leaving the old standing price to keep flagging the same
+     recurring variance on every future invoice. ── */
+  const MARKET_LIST = [
+    { sku:'HM-CHW-1KG',    name:'Chicken Wings 1kg',      uom:'kg',     price:8.20,  supplier:'Harbour Meats' },
+    { sku:'HM-PRB-1KG',    name:'Pork Ribs 1kg',           uom:'kg',     price:10.20, supplier:'Harbour Meats' },
+    { sku:'HM-BRI-2KG',    name:'Beef Brisket 2kg',        uom:'kg',     price:22.00, supplier:'Harbour Meats' },
+    { sku:'HM-BAC-1KG',    name:'Bacon Rashers 1kg',       uom:'kg',     price:14.50, supplier:'Harbour Meats' },
+    { sku:'HM-CHKB-500',   name:'Chicken Breast 500g',     uom:'kg',     price:8.40,  supplier:'Harbour Meats' },
+    { sku:'HM-LMR-EA',     name:'Lamb Rack (each)',        uom:'ea',     price:28.00, supplier:'Harbour Meats' },
+    { sku:'HM-SLMF-200',   name:'Salmon Fillet 200g',      uom:'kg',     price:32.20, supplier:'Harbour Meats' },
+    { sku:'HM-BSR-500',    name:'Beef Short Rib 500g',     uom:'pkg',    price:12.50, supplier:'Harbour Meats' },
+    { sku:'MBS-SRD-EA',    name:'Sourdough Loaf (each)',   uom:'ea',     price:5.50,  supplier:'Metro Bakery Supplies' },
+    { sku:'MBS-CRO-6PK',   name:'Croissant 6-pack',        uom:'pkg',    price:9.00,  supplier:'Metro Bakery Supplies' },
+    { sku:'GFM-MXL-2KG',   name:'Mixed Leaf 2kg',          uom:'bag',    price:9.00,  supplier:'Green Farmers Market' },
+    { sku:'GFM-AVO-EA',    name:'Avocado (each)',          uom:'ea',     price:2.40,  supplier:'Green Farmers Market' },
+    { sku:'GFM-TOM-5KG',   name:'Roma Tomatoes 5kg',       uom:'box',    price:16.50, supplier:'Green Farmers Market' },
+    { sku:'GFM-SPN-1KG',   name:'Baby Spinach 1kg',        uom:'bag',    price:12.00, supplier:'Green Farmers Market' },
+    { sku:'GFM-CHT-250',   name:'Cherry Tomatoes 250g',    uom:'punnet', price:3.50,  supplier:'Green Farmers Market' },
+    { sku:'GFM-CUC-EA',    name:'Cucumber (each)',         uom:'ea',     price:1.20,  supplier:'Green Farmers Market' },
+    { sku:'FPC-CHT-250',   name:'Cherry Tomatoes 250g',    uom:'punnet', price:3.50,  supplier:'Fresh Produce Co' },
+    { sku:'FPC-ICE-EA',    name:'Iceberg Lettuce (each)',  uom:'ea',     price:2.20,  supplier:'Fresh Produce Co' },
+    { sku:'SBC-CHKB-500',  name:'Chicken Breast 500g',     uom:'pkg',    price:7.15,  supplier:'Sydney Butchers Co.' },
+    { sku:'CHK-THI-2KG',   name:'Chicken Thigh 2kg',       uom:'pkg',    price:11.50, supplier:'Sydney Butchers Co.' },
+    { sku:'BEEF-MIN-500',  name:'Beef Mince 500g',         uom:'pkg',    price:9.80,  supplier:'Sydney Butchers Co.' },
+    { sku:'PDW-SPK-1L',    name:'Sparkling Water 1L',      uom:'btl',    price:1.80,  supplier:'Pantry & Drinks Wholesale' },
+    { sku:'PDW-OJ-1L',     name:'Orange Juice 1L',         uom:'btl',    price:3.60,  supplier:'Pantry & Drinks Wholesale' },
+  ];

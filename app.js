@@ -574,6 +574,109 @@
     toast(`${label} updated`);
     openDetail(inv.id, window._detailFrom);
   }
+
+  /* ══════════ market list — mapping an unmapped item, and the two ways
+     to resolve a price exception. MARKET_LIST (data.js) is the org's own
+     standing catalog, checked independently of any one PO: an item not in
+     it is a data problem regardless of matching policy (3-way, 2-way or
+     none — see computeOutcome()'s l.unmapped check). Neither action here
+     touches PO_CATALOG — a specific PO's contracted price is a historical
+     record; MARKET_LIST is the forward-looking reference future invoices
+     get checked against. ══════════ */
+  function slugifySku(name){
+    return (name || 'ITEM').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20) || 'ITEM';
+  }
+  function uniqueSku(base){
+    let sku = base, n = 2;
+    while (MARKET_LIST.some(m => m.sku === sku)) { sku = `${base}-${n++}`; }
+    return sku;
+  }
+  // Unmapped lines have no sku yet (that's what "unmapped" means), so a
+  // name match is how one is found again — fine here since a given invoice
+  // only ever has one unmapped line in this prototype's data. Checks both
+  // `lines` (the normal PO-matching working set) and `capturedLines` ('none'
+  // mode, or any no-PO invoice, reads from there instead — see openDetail()).
+  function findUnmappedLine(inv, name){
+    return (inv.lines || []).find(l => l.unmapped && l.name === name)
+        || (inv.capturedLines || []).find(l => l.unmapped && l.name === name);
+  }
+
+  function openMapItemModal(invId, lineName){
+    const inv = findInv(invId);
+    const line = inv && findUnmappedLine(inv, lineName);
+    if (!inv || !line) return;
+    window._mapItemFor = { invId, lineName };
+    document.getElementById('map-supplier').textContent = inv.supplier || 'this supplier';
+    document.getElementById('map-name').value = line.name;
+    document.getElementById('map-sku').value = uniqueSku(slugifySku(line.name));
+    document.getElementById('map-uom').value = line.uom || '';
+    document.getElementById('map-price').value = (line.invPrice ?? 0).toFixed(2);
+    document.getElementById('map-item-modal').classList.add('on');
+  }
+  function cancelMapItem(){
+    document.getElementById('map-item-modal').classList.remove('on');
+    window._mapItemFor = null;
+  }
+  function confirmMapItem(){
+    const ctx = window._mapItemFor;
+    if (!ctx) return;
+    const inv = findInv(ctx.invId);
+    const line = inv && findUnmappedLine(inv, ctx.lineName);
+    if (!inv || !line) { cancelMapItem(); return; }
+    const name = (document.getElementById('map-name').value || '').trim();
+    const uom = (document.getElementById('map-uom').value || '').trim();
+    const price = parseFloat(document.getElementById('map-price').value);
+    let sku = (document.getElementById('map-sku').value || '').trim().toUpperCase().replace(/\s+/g, '-');
+    if (!name || isNaN(price)) { toast('Enter an item name and a valid price'); return; }
+    if (!sku) sku = uniqueSku(slugifySku(name));
+    if (MARKET_LIST.some(m => m.sku === sku)) { toast(`SKU ${sku} is already in the market list — use a different one`); return; }
+
+    MARKET_LIST.push({ sku, name, uom, price, supplier: inv.supplier || null });
+    line.sku = sku;
+    line.name = name;
+    line.uom = uom;
+    line.unmapped = false;
+    // No PO ever listed this item, so there's nothing to check its price or
+    // receipt against — treat the invoiced figures as the reference for
+    // this line so it doesn't fall straight into a different exception the
+    // moment it's mapped (an item just added to the market list isn't the
+    // same problem as one that's mapped but priced wrong).
+    if (line.poPrice == null) line.poPrice = price;
+    if (line.grn === undefined) line.grn = line.qty;
+
+    logAudit(inv, `Market list — ${name}`, 'Unmapped', `Added as ${sku} @ ${fmt(price)}`);
+    cancelMapItem();
+    recomputeAllStatuses();
+    refreshAllTables();
+    toast(`Added "${name}" to the market list`);
+    openDetail(inv.id, window._detailFrom);
+  }
+
+  // The two ways to resolve a 'Price' exception: bring the market list's
+  // standing price forward to match what the supplier actually billed (so
+  // future invoices at this new price stop flagging), or approve this one
+  // invoice as a one-off without changing what future invoices are checked
+  // against. Only touches lines that are actually the reason for the
+  // exception — a line already within tolerance keeps its existing price.
+  function acceptPriceIntoMarketList(id){
+    const inv = findInv(id);
+    if (!inv) return;
+    const changed = [];
+    (inv.lines || []).forEach(l => {
+      if (l.missing || l.extra || l.unmapped || !l.sku) return;
+      if (withinPriceTolerance(l)) return;
+      const item = MARKET_LIST.find(m => m.sku === l.sku);
+      if (!item) return;
+      const from = item.price;
+      item.price = l.invPrice;
+      changed.push(`${l.name} ${fmt(from)} → ${fmt(l.invPrice)}`);
+    });
+    if (changed.length) logAudit(inv, 'Market list price', changed.length + ' item(s)', changed.join('; '));
+    approveInvoice(id, changed.length
+      ? `Approved — market list price updated (${changed.join(', ')})`
+      : 'Approved with override — logged to audit trail');
+  }
+
   // The header "History" button — hidden when nothing's been edited yet, so
   // an untouched invoice's header doesn't grow a button nobody needs.
   function renderHistoryButton(inv){
@@ -961,6 +1064,13 @@
         primary = '';
       } else if (inv.status === 'warn') {
         primary = `<button class="btn btn-go" onclick="approveInvoice('${inv.id}','Credit note drafted — invoice marked resolved')"><i class="ti ti-receipt-2"></i> Raise credit note</button>`;
+      } else if (inv.reasonTag === 'Price') {
+        // A price exception has two genuinely different resolutions, not
+        // one: accept the supplier's new price going forward too (so the
+        // same variance stops recurring on every future invoice), or accept
+        // this invoice only, leaving the market list's standing price — and
+        // therefore every future invoice's check — unchanged.
+        primary = `<button class="btn btn-go" onclick="acceptPriceIntoMarketList('${inv.id}')"><i class="ti ti-check"></i> Accept &amp; update market list price</button><button class="btn btn-ghost" onclick="approveInvoice('${inv.id}','Approved with override — logged to audit trail')">Accept, keep market list price</button>`;
       } else {
         primary = `<button class="btn btn-go" onclick="approveInvoice('${inv.id}','Approved with override — logged to audit trail')"><i class="ti ti-check"></i> Approve anyway</button>`;
       }
@@ -1209,9 +1319,10 @@
         ? '<span class="status status-risk"><span class="dot"></span>Unmapped item</span>'
         : '<span class="status status-info"><span class="dot"></span>Not checked</span>';
       const qty = l.qty ?? 0, price = l.invPrice ?? 0;
+      const mapLink = l.unmapped ? `<div class="li-map-link"><button onclick='openMapItemModal("${inv.id}", ${JSON.stringify(l.name)})'>+ Add to market list</button></div>` : '';
       return `<tr>
         <td class="drag">⠿</td>
-        <td>${escapeHtml(l.name)}<div class="li-sku">${l.sku||''}</div></td>
+        <td>${escapeHtml(l.name)}<div class="li-sku">${l.sku||''}</div>${mapLink}</td>
         <td>${qty}</td>
         <td class="c-poqty-cell li-ref">—</td>
         <td class="c-grn-cell li-ref">—</td>
@@ -1268,9 +1379,10 @@
       const poCell = (l.extra || l.unmapped) ? '<span title="Not on the purchase order">—</span>' : fmt(l.poPrice);
       const editedTag = l.edited ? ' <span class="li-edited" title="Corrected by a person — see History">·edited</span>' : '';
       const poTag = multiPO ? `<div class="li-also-on">${linePO(inv, l) || ''}</div>` : '';
+      const mapLink = l.unmapped ? `<div class="li-map-link"><button onclick='openMapItemModal("${inv.id}", ${JSON.stringify(l.name)})'>+ Add to market list</button></div>` : '';
       return `<tr>
         <td class="drag">⠿</td>
-        <td><input class="li-input" value="${escapeHtml(l.name)}" onchange="commitLineEdit('${inv.id}',${idx},'name','Description',this.value)"/><div class="li-sku">${l.sku||''}${editedTag}</div>${poTag}</td>
+        <td><input class="li-input" value="${escapeHtml(l.name)}" onchange="commitLineEdit('${inv.id}',${idx},'name','Description',this.value)"/><div class="li-sku">${l.sku||''}${editedTag}</div>${poTag}${mapLink}</td>
         <td><input class="li-input num" value="${l.qty}" onchange="commitLineEdit('${inv.id}',${idx},'qty','Qty',this.value)"/></td>
         <td class="c-poqty-cell li-ref${poQtyOk ? '' : ' ref-warn'}">${poQtyCell}</td>
         <td class="c-grn-cell li-ref${qtyOk ? '' : ' ref-warn'}">${grnCell}</td>

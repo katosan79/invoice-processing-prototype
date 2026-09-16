@@ -347,6 +347,42 @@
     </div>
   </div>
 
+  <!-- ═══ MAP UNMAPPED ITEM — the org's market list has no entry matching
+       this line at all (not a mismatch, an absence). Prefilled from what
+       the invoice actually says, so mapping the item and confirming its
+       standing price is one step, not two separate ones. ═══ -->
+  <div class="modal-bg" id="map-item-modal">
+    <div class="modal" style="width:420px;">
+      <h4>Add item to market list</h4>
+      <p>Not in the market list for <b id="map-supplier"></b> yet — add it once, and every future invoice for this item is checked against it.</p>
+
+      <div class="fld" style="max-width:none;margin-top:14px;">
+        <label>Item name</label>
+        <input type="text" id="map-name"/>
+      </div>
+      <div class="row2" style="justify-content:stretch;gap:12px;">
+        <div class="fld" style="max-width:none;flex:1;">
+          <label>SKU</label>
+          <input type="text" id="map-sku"/>
+        </div>
+        <div class="fld" style="max-width:none;flex:1;">
+          <label>Unit size</label>
+          <input type="text" id="map-uom"/>
+        </div>
+      </div>
+      <div class="fld" style="max-width:none;">
+        <label>Standing price</label>
+        <input type="text" id="map-price"/>
+        <p style="margin-top:4px;">This is the price this invoice billed — adjust it if it's not what future invoices should be checked against.</p>
+      </div>
+
+      <div class="row2">
+        <button class="btn btn-ghost" onclick="cancelMapItem()">Cancel</button>
+        <button class="btn btn-go" onclick="confirmMapItem()">Add to market list</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ MATCHING SETTINGS — an org-wide policy switch, not a per-invoice
        control: changes what "auto-post clean" means for every invoice, so
        it lives in its own settings surface with an explicit Save step and

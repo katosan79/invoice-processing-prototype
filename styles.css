@@ -417,6 +417,12 @@
      see renderMergedRow() in app.js) the per-PO quantity breakdown, e.g.
      "18 via PO-5512 · 5 via PO-5528". */
   .li-also-on{ color:var(--skytext); font-size:10.5px; margin-top:1px; }
+  /* Inline action under an unmapped line's SKU/name — the market list has
+     no entry for it at all, so this is the one place a person resolves
+     that rather than being routed to a separate screen. */
+  .li-map-link{ margin-top:3px; }
+  .li-map-link button{ background:none; border:none; padding:0; color:var(--fern); font-weight:700; font-size:10.5px; cursor:pointer; font-family:inherit; }
+  .li-map-link button:hover{ text-decoration:underline; }
   /* a "missing" line is a PO item that was never invoiced — a ghost row,
      not something to edit, so it's visually quieter than a real line */
   .li-row-missing td{ background:var(--surface-soft); color:var(--text-soft); }
