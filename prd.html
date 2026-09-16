@@ -537,6 +537,7 @@
         <div><i class="ti ti-circle-x"></i><span><b>Not an accounting integration change.</b> Export behaviour and the supported targets are unchanged.</span></div>
         <div><i class="ti ti-circle-x"></i><span><b>Not removing CS entirely.</b> The goal is that CS handles genuine escalations, not routine variance review.</span></div>
         <div><i class="ti ti-circle-x"></i><span><b>Not a mobile app.</b> Capture on mobile already works, and the Invoices review flow now reflows down to phone width (a hamburger drawer replaces the sidebar; the two-column detail screen stacks) — but this is a responsive web pass on the existing screens, not a native app or a mobile-specific redesign.</span></div>
+        <div><i class="ti ti-circle-x"></i><span><b>Not wired to a cloud OCR service.</b> The per-file "readable" check on upload is a file-size heuristic only (small non-PDF photos are flagged), not a real quality read — deliberately, so we're not taking on a per-page vendor cost and API dependency at prototype stage. Swapping in a real OCR-based check later doesn't change the UX, only what runs behind it.</span></div>
       </div>
     </div>
   </section>
@@ -587,10 +588,17 @@
    returning reader scans to see what changed since they last looked.
    ════════════════════════════════════════════════════════════════════ */
 const DECK = {
-  version: '0.7',
+  version: '0.8',
   updated: '16 September 2026',
   status: 'Draft — for internal review',
   changelog: [
+    {
+      v: '0.8',
+      date: '16 Sep 2026',
+      notes: [
+        'Added a non-goal: the upload readability check is a file-size heuristic, not real OCR/quality analysis — a deliberate call to avoid a cloud OCR vendor dependency and per-page cost at this stage.',
+      ],
+    },
     {
       v: '0.7',
       date: '16 Sep 2026',
