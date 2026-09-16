@@ -499,6 +499,7 @@
         <div class="bar"><i></i><i></i><i></i><span class="t">Invoices → Invoice detail</span></div>
         <div class="body">
           <div class="feat"><div class="k">1</div><div><h3>Status header and contextual action bar</h3><p>The blocker in plain language, and only the actions that state allows — Post invoice, Raise credit note, Accept as short-shipped, Request re-upload, Reject.</p><span class="why">No generic toolbar the user has to decode.</span></div></div>
+          <div class="feat"><div class="k">8</div><div><h3>Resolving what the market list can't see yet</h3><p>An unmapped line gets a "+ Add to market list" action right under it, prefilled from what the invoice says — mapping it re-evaluates the invoice immediately rather than leaving it stuck on a generic override. A price exception's approval is split into two real choices instead of one blanket "Approve anyway": <b>Accept &amp; update market list price</b> brings the standing price forward so the same variance stops recurring, versus <b>Accept, keep market list price</b> for a genuine one-off. Neither touches the PO's own contracted price, which stays a historical record either way.</p><span class="why">"Approve anyway" was silently deciding whether a supplier's new price becomes the new normal — a decision that deserves its own button, not a side effect.</span></div></div>
           <div class="feat"><div class="k">2</div><div><h3>Three-part hierarchy</h3><p>Invoice details → match summary → line items. The match bar is visually its own band so it reads as something the system is telling you, not a field you filled in.</p><span class="why">Separates evidence from input.</span></div></div>
           <div class="feat"><div class="k">3</div><div><h3>All three documents on one line</h3><p>Every line carries the invoiced qty and price next to the <b>GRN qty</b> received and the <b>PO price</b> agreed, plus its own verdict — "6.2% vs PO", "Qty +4 vs GRN", "Not on PO-5530", "Awaiting GRN". Under 2-way matching the GRN column disappears.</p><span class="why">The variance is arithmetic the reviewer can see, not a claim they have to trust.</span></div></div>
           <div class="feat"><div class="k">4</div><div><h3>Goods receipt named on the invoice</h3><p>The GRN reference sits beside the order number — the two documents being matched against — with how many lines have actually been received against it.</p><span class="why">"Awaiting GRN" stops being a mystery: you can see which receipt, and how much of it landed.</span></div></div>
@@ -588,10 +589,18 @@
    returning reader scans to see what changed since they last looked.
    ════════════════════════════════════════════════════════════════════ */
 const DECK = {
-  version: '0.9',
+  version: '1.0',
   updated: '16 September 2026',
   status: 'Draft — for internal review',
   changelog: [
+    {
+      v: '1.0',
+      date: '16 Sep 2026',
+      notes: [
+        'Added a market list — the org\'s own standing item catalog, checked independently of any PO. An unmapped line on the invoice detail screen now gets a "+ Add to market list" action, prefilled from what the invoice says, that maps it and re-evaluates the invoice immediately instead of leaving it on a generic override.',
+        'Split the single "Approve anyway" button for a price exception into two real choices: accept and bring the market list\'s standing price forward (so the same variance stops recurring on future invoices), or accept this invoice only and leave the standing price untouched. Neither ever touches a PO\'s own contracted price — that stays a historical record.',
+      ],
+    },
     {
       v: '0.9',
       date: '16 Sep 2026',
